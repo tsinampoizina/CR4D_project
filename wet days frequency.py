@@ -22,20 +22,10 @@ from geocat.viz import cmaps as gvcmaps
 from geocat.viz import util as gvutil
 
 
-def get_data(filex, datex):
+def get_by_file(filex):
     ds = xr.open_dataset(filex)
-    ds = ds.sel(time=datex,longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
+    ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
     return ds
-
-date = '2000-11-30T00:00:00.000000000'
-file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.2000.days_p05.nc'
-ds_disk = get_data(file, date)
-lat = ds_disk["latitude"]
-lon = ds_disk["longitude"]
-precip = ds_disk["precip"]
-
-t0 = time.time()
-
 def countour_plot(dat):
     
     # Download the Natural Earth shapefile for country boundaries at 10m resolution
@@ -92,7 +82,7 @@ def countour_plot(dat):
     ax.set_extent([42, 52, -26, -11], crs=projection)
     
     # Define the contour levels
-    clevs = np.arange(0, 60, 3, dtype=float)
+    clevs = np.arange(0, 200, 10, dtype=float)
     
     # Import an NCL colormap, truncating it by using geocat.viz.util convenience function
     newcmp = gvutil.truncate_colormap(gvcmaps.WhiteBlue, minval=0, maxval=1, n=len(clevs))
@@ -136,7 +126,38 @@ def countour_plot(dat):
     # Show the plot
     plt.show()
 
-countour_plot(precip)
+the_date = '2000-11-30T00:00:00.000000000'
+file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.2000.days_p05.nc'
+ds_disk = get_by_file(file)
+
+lat = ds_disk["latitude"]
+lon = ds_disk["longitude"]
+dates = ds_disk["time"]
+
+precip = ds_disk["precip"]
+year_length = dates.values.shape[0]
+
+# Make 1 if >=1, otherwise make 0
+freqs = precip.where(precip<1,1)
+freqs = freqs.where(precip>=0.9999,0)
+
+
+freq = freqs.sum('time')
+#freq = freq*(1/year_length)
+
+freq_pan = freq.to_dataframe()['precip']
+
+t0 = time.time()
+
+#precip = precip.sel(time=the_date)
+# Make every rainy day 1, every other 0
+
+# for every year, 
+#     for every date, 
+#         transform the precip using `where` into (0,1)  
+#         add (a la numpy) the transformed data into the data object `freq`  
+
+countour_plot(freq)
 
 t1 = time.time()
     
