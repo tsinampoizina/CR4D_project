@@ -33,7 +33,7 @@ def countour_plot(dat, value_max):
                               resolution='10m',
                               name='admin_0_countries')
     
-    # Sort the geometries in the shapefile into Chinese/Taiwanese or other
+    # Sort the geometries in the shapefile into Madagascar or other
     country_geos = []
     other_land_geos = []
     for record in ShapeReader(shapefile).records():
@@ -63,7 +63,7 @@ def countour_plot(dat, value_max):
                               resolution='10m',
                               name='admin_1_states_provinces')
     
-    # Extract the Chinese province borders
+    # Extract the Madagascar region borders
     province_geos = [record.geometry for record in ShapeReader(shapefile).records()
                      if record.attributes['admin'] == 'Madagascar']
     
@@ -125,29 +125,53 @@ def countour_plot(dat, value_max):
     
     # Show the plot
     plt.show()
+def month_start_end(year):
+    month_start_end_list = [
+    (str(year)+'-01-01T00:00:00.000000000',str(year)+'-01-31T00:00:00.000000000'),
+    (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-28T00:00:00.000000000'),
+    (str(year)+'-03-01T00:00:00.000000000',str(year)+'-03-31T00:00:00.000000000'),
+    (str(year)+'-04-01T00:00:00.000000000',str(year)+'-04-30T00:00:00.000000000'),
+    (str(year)+'-05-01T00:00:00.000000000',str(year)+'-05-31T00:00:00.000000000'),
+    (str(year)+'-06-01T00:00:00.000000000',str(year)+'-06-30T00:00:00.000000000'),
+    (str(year)+'-07-01T00:00:00.000000000',str(year)+'-07-31T00:00:00.000000000'),
+    (str(year)+'-08-01T00:00:00.000000000',str(year)+'-08-31T00:00:00.000000000'),
+    (str(year)+'-09-01T00:00:00.000000000',str(year)+'-09-30T00:00:00.000000000'),
+    (str(year)+'-10-01T00:00:00.000000000',str(year)+'-10-31T00:00:00.000000000'),
+    (str(year)+'-11-01T00:00:00.000000000',str(year)+'-11-30T00:00:00.000000000'),
+    (str(year)+'-12-01T00:00:00.000000000',str(year)+'-12-31T00:00:00.000000000')]
+    if year in [1964,1968,1972,1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020]:
+        month_start_end_list[1] = (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-29T00:00:00.000000000')
+    return month_start_end_list
 
-# the_date = '2000-11-30T00:00:00.000000000'
-file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.2000.days_p05.nc'
+threshold = 1
+year = 2000
+file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(year)+'.days_p05.nc'
 ds_disk = get_by_file(file)
-
 lat = ds_disk["latitude"]
 lon = ds_disk["longitude"]
 dates = ds_disk["time"]
-
 precip = ds_disk["precip"]
 year_length = dates.values.shape[0]
 
-# Make 1 if >=threshold, otherwise make 0
-threshold = 30
-max_value = 35
-freqs = precip.where(precip<threshold,1)
-freqs = freqs.where(precip>=threshold-0.001,0)
+# frequency per months, 0-12
+freqs_month = []
+for start, end in month_start_end(year):
+    prec = precip.sel(time=slice(start,end))
+    # Make 1 if >=threshold, otherwise make 0
+    freqs = prec.where(prec<threshold,1)
+    freqs = freqs.where(prec>=threshold-0.001,0)
+    freq = freqs.sum('time')
+    freq = freq*(100/year_length)
+    freqs_month.append(freq)
 
 
-freq = freqs.sum('time')
-freq = freq*(100/year_length)
-
+#freq = sum([freqs_month[i] for i in range(0,12)]) # all year
+freq = freqs_month[11] + freqs_month[0] + freqs_month[1] + freqs_month[2] # djfm 
+#freq = sum([freqs_month[i] for i in range(3,11)]) # apr-nov
+#freq = sum([freqs_month[i] for i in [0,1,2,3,10,11]]) # NDJFMA
+#freq = sum([freqs_month[i] for i in range(4,10)]) # may-oct
 freq_pan = freq.to_dataframe()['precip']
+
 
 t0 = time.time()
 
@@ -158,7 +182,7 @@ t0 = time.time()
 #     for every date, 
 #         transform the precip using `where` into (0,1)  
 #         add (a la numpy) the transformed data into the data object `freq`  
-
+max_value = 60
 countour_plot(freq, max_value)
 
 t1 = time.time()
