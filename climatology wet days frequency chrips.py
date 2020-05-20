@@ -23,7 +23,7 @@ from geocat.viz import util as gvutil
 def get_by_file(filex):
     '''Get data from filename, slice using Madagascar coordinates'''
     ds = xr.open_dataset(filex)
-    ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
+    # ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
     return ds
 def countour_plot(dat, contour_levels, title):
     
@@ -143,7 +143,7 @@ def month_start_end(year):
         month_start_end_list[1] = (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-29T00:00:00.000000000')
     return month_start_end_list
 def compute_freq_year_season(year, season):
-    file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(year)+'.days_p05.nc'
+    file = file_name(year)
     ds_disk = get_by_file(file)
     precip = ds_disk["precip"]
     freqs_month = []
@@ -172,13 +172,15 @@ def compute_climatology_season(years, season):
             climatology += compute_freq_year_season(year, season)
     return climatology
 
+def file_name(year):
+    return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/chrips/chrips-v2-region-'+str(year)+'.nc'
  
 # Take one day to get the corect data shape, to initialise
 # example_precip is used in compute_climatology
 # lat, lon, are used in contour_plot
 example_year = 2000
 example_date = '2000-11-30T00:00:00.000000000' 
-file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(example_year)+'.days_p05.nc'
+file = file_name(example_year)
 ds_disk = get_by_file(file)
 example_precip = ds_disk["precip"].sel(time=example_date)
 lat = ds_disk["latitude"]
@@ -188,13 +190,13 @@ precip = ds_disk["precip"]
 
 # CONSTANTS
 THRESHOLD = 1
-YEARS = range(1982,2019)
-YEARS = [2018]
+YEARS = range(1982,2018)
+#YEARS = [2018]
 SEASON = 'djfm'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
 #SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
 MAX_VALUE = 30*len(SEASON)
 CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
-TITLE = 'CHRIPS'
+TITLE = 'CHRIPS Climatology of Wet Days Frequency DJFM 1982-2018'
 
 t0 = time.time()
   
