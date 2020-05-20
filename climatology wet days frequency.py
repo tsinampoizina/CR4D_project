@@ -23,10 +23,11 @@ from geocat.viz import util as gvutil
 
 
 def get_by_file(filex):
+    '''Get data from filename, slice using Madagascar coordinates'''
     ds = xr.open_dataset(filex)
     ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
     return ds
-def countour_plot(dat, value_max):
+def countour_plot(dat, contour_levels):
     
     # Download the Natural Earth shapefile for country boundaries at 10m resolution
     shapefile = natural_earth(category='cultural',
@@ -82,7 +83,8 @@ def countour_plot(dat, value_max):
     ax.set_extent([42, 52, -26, -11], crs=projection)
     
     # Define the contour levels
-    clevs = np.arange(0, value_max, 5, dtype=float)
+    clevs = contour_levels
+    
     
     # Import an NCL colormap, truncating it by using geocat.viz.util convenience function
     newcmp = gvutil.truncate_colormap(gvcmaps.precip_11lev, minval=0, maxval=.8, n=len(clevs))
@@ -117,7 +119,7 @@ def countour_plot(dat, value_max):
     gvutil.add_major_minor_ticks(ax, x_minor_per_major=4, y_minor_per_major=5, labelsize=18)
     
     # Use geocat.viz.util convenience function to add main title as well as titles to left and right of the plot axes.
-    gvutil.set_titles_and_labels(ax, lefttitle="Precipitation", lefttitlefontsize=20)
+    gvutil.set_titles_and_labels(ax, lefttitle="CHIRPS", lefttitlefontsize=20)
     
     # End timing
     
@@ -144,48 +146,58 @@ def month_start_end(year):
     return month_start_end_list
 
 threshold = 1
-year = 2000
-file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(year)+'.days_p05.nc'
+
+# Take a particular day to get the corect data shape, for initialisation
+example_year = 2000
+example_date = '2000-11-30T00:00:00.000000000'
+file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(example_year)+'.days_p05.nc'
 ds_disk = get_by_file(file)
+example_precip = ds_disk["precip"].sel(time=example_date)
 lat = ds_disk["latitude"]
 lon = ds_disk["longitude"]
 dates = ds_disk["time"]
 precip = ds_disk["precip"]
-year_length = dates.values.shape[0]
-
-# frequency per months, 0-12
-freqs_month = []
-for start, end in month_start_end(year):
-    prec = precip.sel(time=slice(start,end))
-    # Make 1 if >=threshold, otherwise make 0
-    freqs = prec.where(prec<threshold,1)
-    freqs = freqs.where(prec>=threshold-0.001,0)
-    freq = freqs.sum('time')
-    freq = freq*(100/year_length)
-    freqs_month.append(freq)
-
-
-#freq = sum([freqs_month[i] for i in range(0,12)]) # all year
-freq = freqs_month[11] + freqs_month[0] + freqs_month[1] + freqs_month[2] # djfm 
-#freq = sum([freqs_month[i] for i in range(3,11)]) # apr-nov
-#freq = sum([freqs_month[i] for i in [0,1,2,3,10,11]]) # NDJFMA
-#freq = sum([freqs_month[i] for i in range(4,10)]) # may-oct
-freq_pan = freq.to_dataframe()['precip']
+# Initialisation
 
 
 t0 = time.time()
+years = range(1981,2018)
+def compute_climatology(years):
+    climatology = xr.zeros_like(example_precip)
+    for year in years:
+        file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(year)+'.days_p05.nc'
+        ds_disk = get_by_file(file)
+        dates = ds_disk["time"]
+        precip = ds_disk["precip"]
+        # year_length = dates.values.shape[0]
+        
+        # frequency per months, 0-12
+        freqs_month = []
+        for start, end in month_start_end(year):
+            prec = precip.sel(time=slice(start,end))
+            # Make 1 if >=threshold, otherwise make 0
+            freqs = prec.where(prec<threshold,1)
+            freqs = freqs.where(prec>=threshold-0.001,0)
+            freq = freqs.sum('time')
+            #freq = freq*(100/year_length)
+            freqs_month.append(freq)
 
-#precip = precip.sel(time=the_date)
-# Make every rainy day 1, every other 0
 
-# for every year, 
-#     for every date, 
-#         transform the precip using `where` into (0,1)  
-#         add (a la numpy) the transformed data into the data object `freq`  
-max_value = 60
-countour_plot(freq, max_value)
-
-t1 = time.time()
+        #freq = sum([freqs_month[i] for i in range(0,12)]) # all year
+        freq = freqs_month[11] + freqs_month[0] + freqs_month[1] + freqs_month[2] # djfm 
+        #freq = sum([freqs_month[i] for i in range(3,11)]) # apr-nov
+        #freq = sum([freqs_month[i] for i in [0,1,2,3,10,11]]) # NDJFMA
+        freq = sum([freqs_month[i] for i in [11]]) # may-oct
+        climatology += freq
+    return climatology
     
-time_total = t1-t0
-print(time_total)
+climatology_freq = compute_climatology(years)
+climatology_freq = climatology_freq / len(years)
+
+freq_pan = climatology_freq.to_dataframe()['precip']
+t1 = time.time()
+contour_levels = np.arange(0, 30, 3, dtype=float)
+countour_plot(climatology_freq, contour_levels)
+
+t2 = time.time()
+print(t1-t0, t2-t1)
