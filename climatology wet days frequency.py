@@ -10,8 +10,6 @@ import xarray as xr
 import numpy as np
 import time
 
-
-
 from matplotlib import pyplot as plt
 
 from cartopy.feature import ShapelyFeature, OCEAN, LAKES
@@ -27,7 +25,7 @@ def get_by_file(filex):
     ds = xr.open_dataset(filex)
     ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
     return ds
-def countour_plot(dat, contour_levels):
+def countour_plot(dat, contour_levels, title):
     
     # Download the Natural Earth shapefile for country boundaries at 10m resolution
     shapefile = natural_earth(category='cultural',
@@ -119,7 +117,7 @@ def countour_plot(dat, contour_levels):
     gvutil.add_major_minor_ticks(ax, x_minor_per_major=4, y_minor_per_major=5, labelsize=18)
     
     # Use geocat.viz.util convenience function to add main title as well as titles to left and right of the plot axes.
-    gvutil.set_titles_and_labels(ax, lefttitle="CHIRPS", lefttitlefontsize=20)
+    gvutil.set_titles_and_labels(ax, lefttitle=title, lefttitlefontsize=20)
     
     # End timing
     
@@ -144,12 +142,42 @@ def month_start_end(year):
     if year in [1964,1968,1972,1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020]:
         month_start_end_list[1] = (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-29T00:00:00.000000000')
     return month_start_end_list
+def compute_freq_year_season(year, season):
+    file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(year)+'.days_p05.nc'
+    ds_disk = get_by_file(file)
+    precip = ds_disk["precip"]
+    freqs_month = []
+    for start, end in month_start_end(year):
+        prec = precip.sel(time=slice(start,end))
+        # Make 1 if >=threshold, otherwise make 0
+        freqs = prec.where(prec<THRESHOLD,1)
+        freqs = freqs.where(prec>=THRESHOLD-0.001,0)
+        freq = freqs.sum('time')
+        #freq = freq*(100/year_length)
+        freqs_month.append(freq)
+    #freq = sum([freqs_month[i] for i in range(0,12)]) # all year
+    #freq = freqs_month[11] + freqs_month[0] + freqs_month[1] + freqs_month[2] # djfm 
+    #freq = sum([freqs_month[i] for i in range(3,11)]) # apr-nov
+    #freq = sum([freqs_month[i] for i in [0,1,2,3,10,11]]) # NDJFMA
+    freq = sum([freqs_month[i] for i in season]) # may-oct
+    return freq
+def compute_climatology_season(years, season):
+    climatology = xr.zeros_like(example_precip)
+    if season == 'djfm':
+        for year in years:
+            climatology += compute_freq_year_season(year-1, [11])
+            climatology += compute_freq_year_season(year, [0,1,2])
+    else:
+        for year in years:
+            climatology += compute_freq_year_season(year, season)
+    return climatology
 
-threshold = 1
-
-# Take a particular day to get the corect data shape, for initialisation
+ 
+# Take one day to get the corect data shape, to initialise
+# example_precip is used in compute_climatology
+# lat, lon, are used in contour_plot
 example_year = 2000
-example_date = '2000-11-30T00:00:00.000000000'
+example_date = '2000-11-30T00:00:00.000000000' 
 file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(example_year)+'.days_p05.nc'
 ds_disk = get_by_file(file)
 example_precip = ds_disk["precip"].sel(time=example_date)
@@ -157,47 +185,22 @@ lat = ds_disk["latitude"]
 lon = ds_disk["longitude"]
 dates = ds_disk["time"]
 precip = ds_disk["precip"]
-# Initialisation
 
+# CONSTANTS
+THRESHOLD = 1
+YEARS = range(1982,2019)
+YEARS = [2018]
+SEASON = 'djfm'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
+#SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
+MAX_VALUE = 30*len(SEASON)
+CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
+TITLE = 'CHRIPS'
 
 t0 = time.time()
-years = range(1981,2018)
-def compute_climatology(years):
-    climatology = xr.zeros_like(example_precip)
-    for year in years:
-        file = '/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.'+str(year)+'.days_p05.nc'
-        ds_disk = get_by_file(file)
-        dates = ds_disk["time"]
-        precip = ds_disk["precip"]
-        # year_length = dates.values.shape[0]
-        
-        # frequency per months, 0-12
-        freqs_month = []
-        for start, end in month_start_end(year):
-            prec = precip.sel(time=slice(start,end))
-            # Make 1 if >=threshold, otherwise make 0
-            freqs = prec.where(prec<threshold,1)
-            freqs = freqs.where(prec>=threshold-0.001,0)
-            freq = freqs.sum('time')
-            #freq = freq*(100/year_length)
-            freqs_month.append(freq)
+  
+climatology_freq = compute_climatology_season(YEARS, SEASON)
+climatology_freq = climatology_freq / len(YEARS)
+countour_plot(climatology_freq, CONTOUR_LEVELS, TITLE)
 
-
-        #freq = sum([freqs_month[i] for i in range(0,12)]) # all year
-        freq = freqs_month[11] + freqs_month[0] + freqs_month[1] + freqs_month[2] # djfm 
-        #freq = sum([freqs_month[i] for i in range(3,11)]) # apr-nov
-        #freq = sum([freqs_month[i] for i in [0,1,2,3,10,11]]) # NDJFMA
-        freq = sum([freqs_month[i] for i in [11]]) # may-oct
-        climatology += freq
-    return climatology
-    
-climatology_freq = compute_climatology(years)
-climatology_freq = climatology_freq / len(years)
-
-freq_pan = climatology_freq.to_dataframe()['precip']
 t1 = time.time()
-contour_levels = np.arange(0, 30, 3, dtype=float)
-countour_plot(climatology_freq, contour_levels)
-
-t2 = time.time()
-print(t1-t0, t2-t1)
+print(t1-t0)
