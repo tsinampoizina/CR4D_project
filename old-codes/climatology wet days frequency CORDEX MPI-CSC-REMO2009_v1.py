@@ -119,42 +119,34 @@ def countour_plot(dat, contour_levels, title):
     # Use geocat.viz.util convenience function to add main title as well as titles to left and right of the plot axes.
     gvutil.set_titles_and_labels(ax, lefttitle=title, lefttitlefontsize=20)
     
-
+    # End timing
+    
+    
+    
+    # Show the plot
+    plt.show()
 def month_start_end(year):
     month_start_end_list = [
-    (0,31),
-    (31,59),
-    (59,90),
-    (90,120),
-    (120,151),
-    (151,181),
-    (181,212),
-    (212,243),
-    (243,273),
-    (273,304),
-    (304,334),
-    (334,365)
-    ]
+    (str(year)+'-01-01T00:00:00.000000000',str(year)+'-01-31T00:00:00.000000000'),
+    (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-28T00:00:00.000000000'),
+    (str(year)+'-03-01T00:00:00.000000000',str(year)+'-03-31T00:00:00.000000000'),
+    (str(year)+'-04-01T00:00:00.000000000',str(year)+'-04-30T00:00:00.000000000'),
+    (str(year)+'-05-01T00:00:00.000000000',str(year)+'-05-31T00:00:00.000000000'),
+    (str(year)+'-06-01T00:00:00.000000000',str(year)+'-06-30T00:00:00.000000000'),
+    (str(year)+'-07-01T00:00:00.000000000',str(year)+'-07-31T00:00:00.000000000'),
+    (str(year)+'-08-01T00:00:00.000000000',str(year)+'-08-31T00:00:00.000000000'),
+    (str(year)+'-09-01T00:00:00.000000000',str(year)+'-09-30T00:00:00.000000000'),
+    (str(year)+'-10-01T00:00:00.000000000',str(year)+'-10-31T00:00:00.000000000'),
+    (str(year)+'-11-01T00:00:00.000000000',str(year)+'-11-30T00:00:00.000000000'),
+    (str(year)+'-12-01T00:00:00.000000000',str(year)+'-12-31T00:00:00.000000000')]
     if year in [1964,1968,1972,1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020]:
-        month_start_end_list = [
-            (0,31),
-            (31,60),
-            (60,91),
-            (91,121),
-            (121,152),
-            (152,182),
-            (182,213),
-            (213,244),
-            (244,274),
-            (274,305),
-            (305,335),
-            (335,366)        
-            ]
+        month_start_end_list[1] = (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-29T00:00:00.000000000')
     return month_start_end_list
 def compute_freq_year_season(year, season):
     file = file_name(year)
     ds_disk = get_by_file(file)
-    precip = ds_disk["precipitation"]
+    precip = ds_disk["pr"]
+    precip = precip*86400
     freqs_month = []
     for start, end in month_start_end(year):
         prec = precip.sel(time=slice(start,end))
@@ -172,7 +164,7 @@ def compute_freq_year_season(year, season):
     return freq
 def compute_climatology_season(years, season):
     climatology = xr.zeros_like(example_precip)
-    if season == 'DJFM':
+    if season == 'djfm':
         for year in years:
             climatology += compute_freq_year_season(year-1, [11])
             climatology += compute_freq_year_season(year, [0,1,2])
@@ -182,42 +174,43 @@ def compute_climatology_season(years, season):
     return climatology
 
 def file_name(year):
-    return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/trmm/3B42_year.'+str(year)+'.7.nc4'
- 
+    filebase="pr_AFR-44_ECMWF-ERAINT_evaluation_r1i1p1_MPI-CSC-REMO2009_v1_day_"
+    folder='/media/sr0046/WD-exFAT-50/CORDEX/evaluation/MPI-CSC-REMO2009_v1/ECMWF-ERAINT_r1i1p1/day/native/'
+    return folder+filebase+str(year)+'.nc'
+
 # Take one day to get the corect data shape, to initialise
 # example_precip is used in compute_climatology
 # lat, lon, are used in contour_plot
-example_year = '2000'
-example_date = 360 
+example_year = '2008'
+example_date = '2008-01-04 12:00:00' 
 file = file_name(example_year)
 ds_disk = get_by_file(file)
-example_precip = ds_disk["precipitation"]
+example_precip = ds_disk["pr"]
 example_precip = example_precip.sel(time=example_date)
 lat = ds_disk["lat"]
 lon = ds_disk["lon"]
-precip = ds_disk["precipitation"]
-
+precip = ds_disk["pr"]
+dates = ds_disk["time"]
+dates_pan = dates.to_dataframe()
+example_precip = example_precip*86400 # Unit of the data
+example_precip_pan = example_precip.to_dataframe()
 
 # CONSTANTS
 THRESHOLD = 1
-YEARS = range(1999,2009)
+YEARS = range(1999,2008)
 #YEARS = [2018]
-SEASON = 'DJFM'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
+SEASON = 'djfm'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
+#SEASON = [0,1,2,11]
 #SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
 MAX_VALUE = 30*len(SEASON)
 CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
-TITLE = 'TRMM'
-title = TITLE
-plot_filename = 'climatology-wet-days-frequency-'+SEASON+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
-plot_folder = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-images/' 
+TITLE = 'MPI-CSC-REMO2009_v1'
 
 t0 = time.time()
   
 climatology_freq = compute_climatology_season(YEARS, SEASON)
 climatology_freq = climatology_freq / len(YEARS)
-climatology_freq = climatology_freq.transpose()
 countour_plot(climatology_freq, CONTOUR_LEVELS, TITLE)
-plt.savefig(plot_folder+plot_filename+'.png')
 
 t1 = time.time()
 print(t1-t0)

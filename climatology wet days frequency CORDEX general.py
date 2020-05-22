@@ -25,7 +25,12 @@ def get_by_file(filex):
     ds = xr.open_dataset(filex)
     # ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
     return ds
-def countour_plot(dat, contour_levels, title):
+def countour_plot(model, dat, contour_levels, title):
+    example_year = '2000' 
+    file = file_name(model, example_year)
+    ds_disk = get_by_file(file)
+    lat = ds_disk[LAT]
+    lon = ds_disk[LON]  
     
     # Download the Natural Earth shapefile for country boundaries at 10m resolution
     shapefile = natural_earth(category='cultural',
@@ -120,41 +125,31 @@ def countour_plot(dat, contour_levels, title):
     gvutil.set_titles_and_labels(ax, lefttitle=title, lefttitlefontsize=20)
     
 
+
 def month_start_end(year):
     month_start_end_list = [
-    (0,31),
-    (31,59),
-    (59,90),
-    (90,120),
-    (120,151),
-    (151,181),
-    (181,212),
-    (212,243),
-    (243,273),
-    (273,304),
-    (304,334),
-    (334,365)
-    ]
+    (str(year)+'-01-01T00:00:00.000000000',str(year)+'-01-31T00:00:00.000000000'),
+    (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-28T00:00:00.000000000'),
+    (str(year)+'-03-01T00:00:00.000000000',str(year)+'-03-31T00:00:00.000000000'),
+    (str(year)+'-04-01T00:00:00.000000000',str(year)+'-04-30T00:00:00.000000000'),
+    (str(year)+'-05-01T00:00:00.000000000',str(year)+'-05-31T00:00:00.000000000'),
+    (str(year)+'-06-01T00:00:00.000000000',str(year)+'-06-30T00:00:00.000000000'),
+    (str(year)+'-07-01T00:00:00.000000000',str(year)+'-07-31T00:00:00.000000000'),
+    (str(year)+'-08-01T00:00:00.000000000',str(year)+'-08-31T00:00:00.000000000'),
+    (str(year)+'-09-01T00:00:00.000000000',str(year)+'-09-30T00:00:00.000000000'),
+    (str(year)+'-10-01T00:00:00.000000000',str(year)+'-10-31T00:00:00.000000000'),
+    (str(year)+'-11-01T00:00:00.000000000',str(year)+'-11-30T00:00:00.000000000'),
+    (str(year)+'-12-01T00:00:00.000000000',str(year)+'-12-31T00:00:00.000000000')]
     if year in [1964,1968,1972,1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020]:
-        month_start_end_list = [
-            (0,31),
-            (31,60),
-            (60,91),
-            (91,121),
-            (121,152),
-            (152,182),
-            (182,213),
-            (213,244),
-            (244,274),
-            (274,305),
-            (305,335),
-            (335,366)        
-            ]
+        month_start_end_list[1] = (str(year)+'-02-01T00:00:00.000000000',str(year)+'-02-29T00:00:00.000000000')
     return month_start_end_list
-def compute_freq_year_season(year, season):
-    file = file_name(year)
+def compute_freq_year_season(model, year, season):
+    file = file_name(model, year)
     ds_disk = get_by_file(file)
-    precip = ds_disk["precipitation"]
+    precip = ds_disk["pr"]
+    #dates_pan = dates.to_dataframe()
+    #example_precip_pan = example_precip.to_dataframe()
+    precip = precip*86400
     freqs_month = []
     for start, end in month_start_end(year):
         prec = precip.sel(time=slice(start,end))
@@ -170,34 +165,44 @@ def compute_freq_year_season(year, season):
     #freq = sum([freqs_month[i] for i in [0,1,2,3,10,11]]) # NDJFMA
     freq = sum([freqs_month[i] for i in season]) # may-oct
     return freq
-def compute_climatology_season(years, season):
+def compute_climatology_season(model,years, season):
+    example_year = '2000'
+    example_date = '2000-01-04 12:00:00'    
+    file = file_name(model, example_year)
+    ds_disk = get_by_file(file)
+    example_precip = ds_disk["pr"]
+    example_precip = example_precip.sel(time=example_date)
     climatology = xr.zeros_like(example_precip)
     if season == 'DJFM':
         for year in years:
-            climatology += compute_freq_year_season(year-1, [11])
-            climatology += compute_freq_year_season(year, [0,1,2])
+            climatology += compute_freq_year_season(model,year-1, [11])
+            climatology += compute_freq_year_season(model,year, [0,1,2])
     else:
         for year in years:
             climatology += compute_freq_year_season(year, season)
     return climatology
 
-def file_name(year):
-    return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/trmm/3B42_year.'+str(year)+'.7.nc4'
- 
-# Take one day to get the corect data shape, to initialise
-# example_precip is used in compute_climatology
-# lat, lon, are used in contour_plot
-example_year = '2000'
-example_date = 360 
-file = file_name(example_year)
-ds_disk = get_by_file(file)
-example_precip = ds_disk["precipitation"]
-example_precip = example_precip.sel(time=example_date)
-lat = ds_disk["lat"]
-lon = ds_disk["lon"]
-precip = ds_disk["precipitation"]
+def file_name(model, year):
+    file = 'pr_AFR-44_ECMWF-ERAINT_evaluation_r1i1p1_'+ model +'_day_'
+    folder = '/media/sr0046/WD-exFAT-50/CORDEX/evaluation/'+ model +'/ECMWF-ERAINT_r1i1p1/day/native/'
+    return folder+file+str(year)+'.nc'
 
-
+def generate_plot(model):
+        title = model
+        plot_filename = 'climatology-wet-days-frequency-'+SEASON+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
+        plot_folder = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-images/'    
+         
+        t0 = time.time()
+          
+        climatology_freq = compute_climatology_season(model, YEARS, SEASON)
+        climatology_freq = climatology_freq / len(YEARS)
+        countour_plot(model,climatology_freq, CONTOUR_LEVELS, title)
+        plt.savefig(plot_folder+plot_filename+'.png')
+        plt.show()
+        
+        t1 = time.time()
+        print(model,'time', t1-t0)
+        
 # CONSTANTS
 THRESHOLD = 1
 YEARS = range(1999,2009)
@@ -206,18 +211,22 @@ SEASON = 'DJFM'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
 #SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
 MAX_VALUE = 30*len(SEASON)
 CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
-TITLE = 'TRMM'
-title = TITLE
-plot_filename = 'climatology-wet-days-frequency-'+SEASON+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
-plot_folder = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-images/' 
+MODELS = [
+'CLMcom-CCLM4-8-17_v1',
+'DMI-HIRHAM5_v2',
+'KNMI-RACMO22T_v1',
+'MOHC-HadGEM3-RA_v1', 
+'MOHC-HadRM3P_v1',
+'MPI-CSC-REMO2009_v1', 
+'SMHI-RCA4_v1',
+'UQAM-CRCM5_v1'
+]
 
-t0 = time.time()
-  
-climatology_freq = compute_climatology_season(YEARS, SEASON)
-climatology_freq = climatology_freq / len(YEARS)
-climatology_freq = climatology_freq.transpose()
-countour_plot(climatology_freq, CONTOUR_LEVELS, TITLE)
-plt.savefig(plot_folder+plot_filename+'.png')
-
-t1 = time.time()
-print(t1-t0)
+for model in MODELS:
+    if model in ["MOHC-HadGEM3-RA_v1", 'MOHC-HadRM3P_v1']:
+        LAT ='lat' # lat for MOHC-Had..., rlat for others
+        LON = 'lon' # lon for MOHC-Had..., rlon for others
+    else:
+        LAT = 'rlat'
+        LON = 'rlon'
+    generate_plot(model)

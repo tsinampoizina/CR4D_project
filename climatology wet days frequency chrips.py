@@ -119,12 +119,7 @@ def countour_plot(dat, contour_levels, title):
     # Use geocat.viz.util convenience function to add main title as well as titles to left and right of the plot axes.
     gvutil.set_titles_and_labels(ax, lefttitle=title, lefttitlefontsize=20)
     
-    # End timing
-    
-    
-    
-    # Show the plot
-    plt.show()
+
 def month_start_end(year):
     month_start_end_list = [
     (str(year)+'-01-01T00:00:00.000000000',str(year)+'-01-31T00:00:00.000000000'),
@@ -163,7 +158,7 @@ def compute_freq_year_season(year, season):
     return freq
 def compute_climatology_season(years, season):
     climatology = xr.zeros_like(example_precip)
-    if season == 'djfm':
+    if season == 'DJFM':
         for year in years:
             climatology += compute_freq_year_season(year-1, [11])
             climatology += compute_freq_year_season(year, [0,1,2])
@@ -190,13 +185,16 @@ precip = ds_disk["precip"]
 
 # CONSTANTS
 THRESHOLD = 1
-YEARS = range(1982,2018)
+YEARS = range(1999,2008)
 #YEARS = [2018]
-SEASON = 'djfm'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
+SEASON = 'DJFM'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
 #SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
 MAX_VALUE = 30*len(SEASON)
 CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
-TITLE = 'CHRIPS Climatology of Wet Days Frequency DJFM 1982-2018'
+TITLE = 'CHRIPS'
+title = TITLE
+plot_filename = 'climatology-wet-days-frequency-'+SEASON+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
+plot_folder = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-images/' 
 
 t0 = time.time()
   
@@ -204,5 +202,6 @@ climatology_freq = compute_climatology_season(YEARS, SEASON)
 climatology_freq = climatology_freq / len(YEARS)
 countour_plot(climatology_freq, CONTOUR_LEVELS, TITLE)
 
+plt.savefig(plot_folder+plot_filename+'.png')
 t1 = time.time()
 print(t1-t0)

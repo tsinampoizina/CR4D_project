@@ -24,16 +24,18 @@ from geocat.viz import util as gvutil
 LON = 'lon'
 LAT = 'lat'
 #ds_disk = xr.open_dataset('/media/sr0046/WD-exFAT-50/DATA/chirps/chirps-v2.0.2000.days_p05.nc')
-dir = '/media/sr0046/WD-exFAT-50/CORDEX/historical/DMI-HIRHAM5_v1/'
-ds_disk = xr.open_dataset(dir+'pr_AFR-44_NCC-NorESM1-M_historical_r1i1p1_DMI-HIRHAM5_v1_day_20010101-20051231.nc')
-ds_disk = ds_disk.sel(rlon=slice(42.125,54.125),rlat=slice(-26.399999618530273,-11.125))
-lat = ds_disk["rlat"]
-lon = ds_disk["rlon"]
+#dir = '/media/sr0046/WD-exFAT-50/CORDEX/historical/DMI-HIRHAM5_v1/'
+dir = '/media/sr0046/WD-exFAT-50/CORDEX/evaluation/MOHC-HadRM3P_v1/ECMWF-ERAINT_r1i1p1/day/native/'
+file = 'pr_AFR-44_ECMWF-ERAINT_evaluation_r1i1p1_MOHC-HadRM3P_v1_day_19910101-19951231.nc'
+ds_disk = xr.open_dataset(dir+file)
+#ds_disk = ds_disk.sel(lon=slice(42.125,54.125),lat=slice(-26.399999618530273,-11.125))
+lat = ds_disk["lat"]
+lon = ds_disk["lon"]
 date = ds_disk["time"]
 time_pan = date.to_dataframe()
 
 precip = ds_disk["pr"]
-precip = precip.sel(time='2001-01-01 12:00:00')
+precip = precip.sel(time='1995-01-01 12:00:00')
 precip_pan = precip.to_dataframe()
 lon_pan = lon.to_dataframe()
 lat_pan = lat.to_dataframe()
@@ -102,7 +104,7 @@ newcmp = gvutil.truncate_colormap(gvcmaps.precip_diff_12lev, minval=0, maxval=1,
 
 # Draw the temperature contour plot with the subselected colormap
 # (Place the zorder of the contour plot at the lowest level)
-cf = ax.contourf(lon, lat, precip, levels=clevs, cmap=newcmp, zorder=1)
+cf = ax.contourf(lon, lat, precip*86400, levels=clevs, cmap=newcmp, zorder=1)
 
 # Draw horizontal color bar
 cax = plt.axes((0.14, 0.08, 0.74, 0.02))
