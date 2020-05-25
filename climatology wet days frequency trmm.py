@@ -154,7 +154,7 @@ def month_start_end(year):
 def compute_freq_year_season(year, season):
     file = file_name(year)
     ds_disk = get_by_file(file)
-    precip = ds_disk["precipitation"]
+    precip = ds_disk[PRECIPITATION]
     freqs_month = []
     for start, end in month_start_end(year):
         prec = precip.sel(time=slice(start,end))
@@ -187,37 +187,42 @@ def file_name(year):
 # Take one day to get the corect data shape, to initialise
 # example_precip is used in compute_climatology
 # lat, lon, are used in contour_plot
-example_year = '2000'
-example_date = 360 
-file = file_name(example_year)
+EXAMPLE_YEAR = '2000'
+EXAMPLE_DATE = 360
+PRECIPITATION = "precipitation"
+LATITUDE = "lat"
+LONGITUDE = "lon"
+file = file_name(EXAMPLE_YEAR)
 ds_disk = get_by_file(file)
-example_precip = ds_disk["precipitation"]
-example_precip = example_precip.sel(time=example_date)
-lat = ds_disk["lat"]
-lon = ds_disk["lon"]
-precip = ds_disk["precipitation"]
+example_precip = ds_disk[PRECIPITATION]
+example_precip = example_precip.sel(time=EXAMPLE_DATE)
+lat = ds_disk[LATITUDE]
+lon = ds_disk[LONGITUDE]
+precip = ds_disk[PRECIPITATION]
 
 
 # CONSTANTS
-THRESHOLD = 1
+THRESHOLD = 30
 YEARS = range(1999,2009)
 #YEARS = [2018]
 SEASON = 'DJFM'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
 #SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
 MAX_VALUE = 30*len(SEASON)
+MAX_VALUE = 10*len(SEASON)
+
 CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
+
 TITLE = 'TRMM'
 title = TITLE
 plot_filename = 'climatology-wet-days-frequency-'+SEASON+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
-plot_folder = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-images/' 
-
+PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
+PLOT_FOLDER = PROJECT_FOLDER+'/plot-images/climatology-'+str(THRESHOLD)+'mm-wdf-DJFM-1999-2008/'
 t0 = time.time()
   
 climatology_freq = compute_climatology_season(YEARS, SEASON)
 climatology_freq = climatology_freq / len(YEARS)
 climatology_freq = climatology_freq.transpose()
 countour_plot(climatology_freq, CONTOUR_LEVELS, TITLE)
-plt.savefig(plot_folder+plot_filename+'.png')
-
+plt.savefig(PLOT_FOLDER+plot_filename+'.png')
 t1 = time.time()
 print(t1-t0)

@@ -190,27 +190,29 @@ def file_name(model, year):
 def generate_plot(model):
         title = model
         plot_filename = 'climatology-wet-days-frequency-'+SEASON+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
-        plot_folder = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-images/'    
          
         t0 = time.time()
           
         climatology_freq = compute_climatology_season(model, YEARS, SEASON)
         climatology_freq = climatology_freq / len(YEARS)
         countour_plot(model,climatology_freq, CONTOUR_LEVELS, title)
-        plt.savefig(plot_folder+plot_filename+'.png')
+        plt.savefig(PLOT_FOLDER+plot_filename+'.png')
         plt.show()
         
         t1 = time.time()
         print(model,'time', t1-t0)
         
 # CONSTANTS
-THRESHOLD = 1
+THRESHOLD = 20
 YEARS = range(1999,2009)
 #YEARS = [2018]
 SEASON = 'DJFM'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
 #SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
 MAX_VALUE = 30*len(SEASON)
+MAX_VALUE = 10*len(SEASON)
 CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
+PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
+PLOT_FOLDER = PROJECT_FOLDER+'/plot-images/climatology-'+str(THRESHOLD)+'mm-wdf-DJFM-1999-2008/'
 MODELS = [
 'CLMcom-CCLM4-8-17_v1',
 'DMI-HIRHAM5_v2',
@@ -221,6 +223,7 @@ MODELS = [
 'SMHI-RCA4_v1',
 'UQAM-CRCM5_v1'
 ]
+
 
 for model in MODELS:
     if model in ["MOHC-HadGEM3-RA_v1", 'MOHC-HadRM3P_v1']:
