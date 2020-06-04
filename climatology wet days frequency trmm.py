@@ -182,16 +182,20 @@ def compute_climatology_season(years, season):
     return climatology
 
 def file_name(year):
-    return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/trmm/3B42_year.'+str(year)+'.7.nc4'
+    return FOLDER + MODEL + '/' + MODEL_V + '-region-' + str(year) + '.nc4'
  
 # Take one day to get the corect data shape, to initialise
 # example_precip is used in compute_climatology
 # lat, lon, are used in contour_plot
+FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/'
 EXAMPLE_YEAR = '2000'
 EXAMPLE_DATE = 360
 PRECIPITATION = "precipitation"
 LATITUDE = "lat"
 LONGITUDE = "lon"
+MODEL = 'trmm'
+MODEL_V = 'TRMM_3B42'
+
 file = file_name(EXAMPLE_YEAR)
 ds_disk = get_by_file(file)
 example_precip = ds_disk[PRECIPITATION]
@@ -205,7 +209,8 @@ precip = ds_disk[PRECIPITATION]
 THRESHOLD = 30
 YEARS = range(1999,2009)
 #YEARS = [2018]
-SEASON = 'DJFM'         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
+SEASON = [0]         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
+SEASON_NAME = 'jan'
 #SEASON = range(10,11)                        # BUT USE 'djfm' for djfm over one season
 MAX_VALUE = 30*len(SEASON)
 MAX_VALUE = 10*len(SEASON)
@@ -214,9 +219,11 @@ CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
 
 TITLE = 'TRMM'
 title = TITLE
-plot_filename = 'climatology-wet-days-frequency-'+SEASON+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
+plot_filename = 'climatology-wet-days-frequency-'+SEASON_NAME+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
 PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
-PLOT_FOLDER = PROJECT_FOLDER+'/plot-images/climatology-'+str(THRESHOLD)+'mm-wdf-DJFM-1999-2008/'
+#PLOT_FOLDER = PROJECT_FOLDER+'/plot-images/climatology-'+str(THRESHOLD)+'mm-wdf-DJFM-1999-2008/'
+PLOT_FOLDER = PROJECT_FOLDER+'/plot-images/climatology-'+str(THRESHOLD)+'mm-wdf-jan-1999-2008/'
+
 t0 = time.time()
   
 climatology_freq = compute_climatology_season(YEARS, SEASON)
