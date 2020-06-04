@@ -47,8 +47,8 @@ def month_range(year, mo):
                 (244,274),
                 (274,305),
                 (305,335),
-                (335,366)        
-                ] 
+                (335,366)
+                ]
     start,end = month_start_end_list[mo]
     return start, end
 
@@ -86,20 +86,20 @@ def compute_climatology_monthly_mean(region):
         zeros_df = np.zeros_like(monthly_mean_precip_df)
         climatology = zeros_df
         for year in YEAR_RANGE:
-            input_f = input_file(year, region)    
+            input_f = input_file(year, region)
             ds_disk = xr.open_dataset(input_f)
-            monthly = ds_disk.groupby('time.month')               
+            monthly = ds_disk.groupby('time.month')
             monthly_mean = monthly.apply(np.mean)
             #print(monthly_mean)
             #print(monthly_mean.precip)
             monthly_mean_precip_df = monthly_mean.to_dataframe().precip
             climatology += monthly_mean_precip_df
         print(climatology/len(YEAR_RANGE))
-    if MODEL == 'trmm': 
+    if MODEL == 'trmm':
         climatology = np.zeros(12)
         for year in YEAR_RANGE:
             this_year_climato = np.zeros(12)
-            input_f = input_file(year, region)    
+            input_f = input_file(year, region)
             daily = xr.open_dataset(input_f)
             daily = daily.groupby(daily.time)
             daily_mean = daily.apply(np.mean)
@@ -156,8 +156,6 @@ if MODEL == 'trmm':
     YEAR_RANGE = range(1998,2017+1)
 
 
-
-    
 fig=plt.figure(figsize=(7,5))
 ax=fig.add_subplot(111)
 col_dic={'region-east':'tab:green','region-cwest':'tab:purple','region-south':'tab:orange'}
@@ -172,8 +170,8 @@ crs,cre = (6,-6) # cycle start and end for display
 month_labels = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
 double_months= month_labels + month_labels
 ax.set_xticks(xs[crs:cre])
-ax.set_xticklabels(double_months[crs:cre])  
-ax.set_ylabel("average precipitation (mm per day)")  
+ax.set_xticklabels(double_months[crs:cre])
+ax.set_ylabel("average precipitation (mm per day)")
 plt.legend(loc=2)
 ax.grid(linestyle='--', linewidth=.25)
 output_f = OUTPUT_FOLDER + 'climatology_seasonal-cycle_daily-rainfall/' + 'seasonal-cycle-all-models' + '.eps'
