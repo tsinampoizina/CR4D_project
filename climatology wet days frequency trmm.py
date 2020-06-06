@@ -10,6 +10,8 @@ import xarray as xr
 import numpy as np
 import time
 
+from collections import namedtuple
+
 from matplotlib import pyplot as plt
 
 from cartopy.feature import ShapelyFeature, OCEAN, LAKES
@@ -122,52 +124,25 @@ def countour_plot(dat, contour_levels, title):
 
 def month_start_end(year):
     month_start_end_list = [
-    (0,31),
-    (31,59),
-    (59,90),
-    (90,120),
-    (120,151),
-    (151,181),
-    (181,212),
-    (212,243),
-    (243,273),
-    (273,304),
-    (304,334),
-    (334,365)
-    ]
+    (0,31), (31,59), (59,90), (90,120), (120,151), (151,181), (181,212),
+    (212,243), (243,273), (273,304), (304,334), (334,365) ]
     if year in [1964,1968,1972,1976,1980,1984,1988,1992,1996,2000,2004,2008,2012,2016,2020]:
         month_start_end_list = [
-            (0,31),
-            (31,60),
-            (60,91),
-            (91,121),
-            (121,152),
-            (152,182),
-            (182,213),
-            (213,244),
-            (244,274),
-            (274,305),
-            (305,335),
-            (335,366)        
-            ]
+            (0,31), (31,60), (60,91), (91,121), (121,152), (152,182),
+            (182,213), (213,244), (244,274), (274,305), (305,335), (335,366)]
     return month_start_end_list
 def compute_freq_year_season(year, season):
     file = file_name(year)
     ds_disk = get_by_file(file)
-    precip = ds_disk[PRECIPITATION]
+    precip = ds_disk[model.precip]
     freqs_month = []
     for start, end in month_start_end(year):
         prec = precip.sel(time=slice(start,end))
         # Make 1 if >=threshold, otherwise make 0
         freqs = prec.where(prec<THRESHOLD,1)
-        freqs = freqs.where(prec>=THRESHOLD-0.001,0)
+        freqs = freqs.where(prec>=THRESHOLD-0.000001,0) # you never know with python
         freq = freqs.sum('time')
-        #freq = freq*(100/year_length)
         freqs_month.append(freq)
-    #freq = sum([freqs_month[i] for i in range(0,12)]) # all year
-    #freq = freqs_month[11] + freqs_month[0] + freqs_month[1] + freqs_month[2] # djfm 
-    #freq = sum([freqs_month[i] for i in range(3,11)]) # apr-nov
-    #freq = sum([freqs_month[i] for i in [0,1,2,3,10,11]]) # NDJFMA
     freq = sum([freqs_month[i] for i in season]) # may-oct
     return freq
 def compute_climatology_season(years, season):
@@ -182,28 +157,27 @@ def compute_climatology_season(years, season):
     return climatology
 
 def file_name(year):
-    return FOLDER + MODEL + '/' + MODEL_V + '-region-' + str(year) + '.nc4'
+    return INPUT_FOLDER + model.name + '/' + model.version + '-region-' + str(year) + '.nc4'
  
 # Take one day to get the corect data shape, to initialise
 # example_precip is used in compute_climatology
 # lat, lon, are used in contour_plot
-FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/'
+INPUT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/'
 EXAMPLE_YEAR = '2000'
 EXAMPLE_DATE = 360
-PRECIPITATION = "precipitation"
-LATITUDE = "lat"
-LONGITUDE = "lon"
-MODEL = 'trmm'
-MODEL_V = 'TRMM_3B42'
+
+Model = namedtuple('Model', 'name version lat lon precip')
+trmm = Model('trmm','TRMM_3B42','lat','lon','precipitation')
+chirps = Model('chirps','chrips-v2','latitude','longitude','precip') 
+model = trmm
 
 file = file_name(EXAMPLE_YEAR)
 ds_disk = get_by_file(file)
-example_precip = ds_disk[PRECIPITATION]
+example_precip = ds_disk[model.precip]
 example_precip = example_precip.sel(time=EXAMPLE_DATE)
-lat = ds_disk[LATITUDE]
-lon = ds_disk[LONGITUDE]
-precip = ds_disk[PRECIPITATION]
-
+lat = ds_disk[model.lat]
+lon = ds_disk[model.lon]
+precip = ds_disk[model.precip]
 
 # CONSTANTS
 THRESHOLD = 30
@@ -216,20 +190,18 @@ MAX_VALUE = 30*len(SEASON)
 MAX_VALUE = 10*len(SEASON)
 
 CONTOUR_LEVELS = np.arange(0, MAX_VALUE, MAX_VALUE/20, dtype=float)
-
-TITLE = 'TRMM'
-title = TITLE
+title = model.name 
 plot_filename = 'climatology-wet-days-frequency-'+SEASON_NAME+'-'+str(YEARS[0])+'-'+str(YEARS[-1])+'-'+title
 PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
-#PLOT_FOLDER = PROJECT_FOLDER+'/plot-images/climatology-'+str(THRESHOLD)+'mm-wdf-DJFM-1999-2008/'
 PLOT_FOLDER = PROJECT_FOLDER+'/plot-images/climatology-'+str(THRESHOLD)+'mm-wdf-jan-1999-2008/'
 
 t0 = time.time()
   
 climatology_freq = compute_climatology_season(YEARS, SEASON)
 climatology_freq = climatology_freq / len(YEARS)
-climatology_freq = climatology_freq.transpose()
-countour_plot(climatology_freq, CONTOUR_LEVELS, TITLE)
+if model.name == 'trmm':
+    climatology_freq = climatology_freq.transpose()
+countour_plot(climatology_freq, CONTOUR_LEVELS, title)
 plt.savefig(PLOT_FOLDER+plot_filename+'.png')
 t1 = time.time()
 print(t1-t0)
