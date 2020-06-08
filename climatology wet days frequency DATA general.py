@@ -13,7 +13,6 @@ from collections import namedtuple
 import pdb
 
 from matplotlib import pyplot as plt
-
 from cartopy.feature import ShapelyFeature, OCEAN, LAKES
 from cartopy.crs import PlateCarree
 from cartopy.io.shapereader import Reader as ShapeReader, natural_earth
@@ -21,6 +20,39 @@ from cartopy.io.shapereader import Reader as ShapeReader, natural_earth
 from geocat.viz import cmaps as gvcmaps
 from geocat.viz import util as gvutil
 
+def add_lon_ticklabels(ax, zero_direction_label=False, dateline_direction_label=False):
+    """
+    Utility function to make plots look like NCL plots by using latitude, longitude tick labels
+    Args:
+        ax (:class:`matplotlib.axes._subplots.AxesSubplot` or :class:`cartopy.mpl.geoaxes.GeoAxesSubplot`):
+            Current axes to the current figure
+        zero_direction_label (:class:`bool`):
+            Set True to get 0 E / O W or False to get 0 only.
+        dateline_direction_label (:class:`bool`):
+            Set True to get 180 E / 180 W or False to get 180 only.
+    """
+    from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
+
+    lon_formatter = LongitudeFormatter(zero_direction_label=zero_direction_label,
+                                       dateline_direction_label=dateline_direction_label)
+    lat_formatter = LatitudeFormatter()
+    ax.xaxis.set_major_formatter(lon_formatter)
+
+def month_start_end(year):
+    month_lengths = [0,31,28,31,30,31,30,31,31,30,31,30,31]
+    if year in [1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000,
+                    2004, 2008, 2012, 2016, 2020]:
+        month_lengths[2] = 29
+    month_start_end_list = [(0,1)]
+    for mo in range(1,13):
+        s,e = month_start_end_list[-1]
+        month_start_end_list.append((e, e + month_lengths[mo]-1))
+    return month_start_end_list
+
+def length(year, lmonths):
+    start_ends = [month_start_end(year)[mo] for mo in lmonths]
+    lengths = [y-x+1 for x,y in start_ends]
+    return sum(lengths)
 
 def get_by_file(filex):
     '''Get data from filename, slice using Madagascar coordinates'''
@@ -74,18 +106,18 @@ def countour_plot(dat, contour_levels, title):
     clevs = contour_levels
     # Import an NCL colormap, truncating it by using geocat.viz.util\
     # convenience function
-    newcmp = gvutil.truncate_colormap(gvcmaps.precip_11lev,
-                                      minval=0,
-                                      maxval=.8,
+    newcmp = gvutil.truncate_colormap(gvcmaps.precip3_16lev,
+                                      minval=charac.min_val,
+                                      maxval=charac.max_val,
                                       n=len(clevs))
     # Draw the temperature contour plot with the subselected colormap
     # (Place the zorder of the contour plot at the lowest level)
     cf = ax.contourf(lon, lat, dat, levels=clevs, cmap=newcmp, zorder=1)
     # Draw horizontal color bar
     cax = plt.axes((0.14, 0.08, 0.74, 0.02))
-    cbar = plt.colorbar(cf, ax=ax, cax=cax, ticks=clevs[1:-1],
+    cbar = plt.colorbar(cf, ax=ax, cax=cax, ticks=clevs[1:-1:2],
                         drawedges=True, orientation='horizontal')
-    cbar.ax.tick_params(labelsize=12)
+    cbar.ax.tick_params(labelsize=ticklabelsize)
     # Add the land mask feature on top of the contour plot (higher zorder)
     ax.add_feature(land_mask, zorder=2)
     # Add the OCEAN and LAKES features on top of the contour plot
@@ -94,78 +126,80 @@ def countour_plot(dat, contour_levels, title):
     # Add the country and province features (which are transparent) on top
     ax.add_feature(countries, zorder=3)
     ax.add_feature(provinces, zorder=3)
-    # Use geocat.viz.util convenience function to set axes tick values
-    gvutil.set_axes_limits_and_ticks(ax, xticks=[45, 50],
-                                     yticks=[-25, -20, -15])
-    # Use geocat.viz.util convenience function to make plots look\
-    # like NCL plots by using latitude, longitude tick labels
-    gvutil.add_lat_lon_ticklabels(ax)
+    if model.plot_pos != 151: # the most left image
+        gvutil.set_axes_limits_and_ticks(ax, xticks=[45, 50], yticks=[-25, -20, -15])
+        ax.set_yticklabels(['','',''])
+        add_lon_ticklabels(ax)
+    else:
+        gvutil.set_axes_limits_and_ticks(ax, xticks=[45, 50], yticks=[-25, -20, -15])
+        # Use geocat.viz.util convenience function to make plots look like NCL plots by using latitude, longitude tick labels
+        gvutil.add_lat_lon_ticklabels(ax)
+
     # Use geocat.viz.util convenience function to add minor and major tick lines
     gvutil.add_major_minor_ticks(ax, x_minor_per_major=4, y_minor_per_major=5,
-                                 labelsize=12)
+                                 labelsize=ticklabelsize)
     # Use geocat.viz.util convenience function to add main title as well as \
     # itles to left and right of the plot axes.
-    gvutil.set_titles_and_labels(ax, lefttitle=title, lefttitlefontsize=12)
+    gvutil.set_titles_and_labels(ax, lefttitle=title, lefttitlefontsize=titlesize)
 
-
-def month_start_end(year):
-    if model.name == 'trmm':
-        month_start_end_list = [(0, 31), (31, 59), (59, 90), (90, 120),
-                                (120, 151), (151, 181), (181, 212), (212, 243),
-                                (243, 273), (273, 304), (304, 334), (334, 365)]
-        if year in [1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000,
-                    2004, 2008, 2012, 2016, 2020]:
-            month_start_end_list = [(0, 31), (31, 60), (60, 91),
-                                    (91, 121), (121, 152), (152, 182),
-                                    (182, 213), (213, 244), (244, 274),
-                                    (274, 305), (305, 335), (335, 366)]
-    return month_start_end_list
-
-
-def compute_freq_year_season(year, season):
+def compute_freq_year_season(year, months):
     file = file_name(year)
     ds_disk = get_by_file(file)
     precip = ds_disk[model.precip]
-    freqs_month = []
+
     if model.name == 'trmm':
+        freqs_month = []
         for start, end in month_start_end(year):
             prec = precip.sel(time=slice(start, end))
             # Make 1 if >= threshold, otherwise make 0
-            if CHARACTERISTICS == 'wdfreq':
-                freqs = prec.where(prec < THRESHOLD, 1)
-                freqs = freqs.where(prec >= THRESHOLD-0.000001, 0)  # to be sure    
+            if charac.name == 'WDF':
+                freqs = prec.where(prec < charac.threshold, 1)
+                freqs = freqs.where(prec > charac.threshold-0.01, 0)  # to be sure
             else:
                 freqs = prec
             freq = freqs.sum('time')
             freqs_month.append(freq)
+        freqs_season = sum([freqs_month[i-1] for i in months])
     else:
-        for i in range(1,13):
-            mo = str(year) + '-' + str(i)
+        example_date = str(year)+'-11-30'
+        if model.name == 'arc2':
+            freqs_season = xr.zeros_like(precip.sel(T=example_date))
+        else:
+            freqs_season = xr.zeros_like(precip.sel(time=example_date))
+        for i in months:
+            mo = str(year) + '-' + str(i).zfill(2)
             if model.name == 'arc2':
                 prec = precip.sel(T=mo)
             else:
                 prec = precip.sel(time=mo)
             # Make 1 if >= threshold, otherwise make 0
-            if CHARACTERISTICS == 'wdfreq':
-                freqs = prec.where(prec < THRESHOLD, 1)
-                freqs = freqs.where(prec >= THRESHOLD-0.000001, 0)  # to be sure
+            if charac.name == 'WDF':
+                freqs = prec.where(prec < charac.threshold, 1)
+                freqs = freqs.where(prec > charac.threshold-0.01, 0)  # to be sure
+                freq = freqs.sum(model.time)
             else:
                 freqs = prec
-            freq = freqs.sum(model.time)
-            freqs_month.append(freq)
-    freq_season = sum([freqs_month[i] for i in season])  # may-oct
-    return freq_season
+                freq = freqs.sum(model.time)
+            print(freq.max(model.lat))
+            freqs_season += freq
+    if model.name == 'arc2':
+        freqs_season = freqs_season.squeeze('T')
+    return freqs_season
 
 
 def compute_climatology_season(years, season):
     climatology = xr.zeros_like(example_precip)
-    if season == 'DJFM':
+    if season == djfm:
         for year in years:
-            climatology += compute_freq_year_season(year-1, [11])
-            climatology += compute_freq_year_season(year, [0, 1, 2])
+            climatology += compute_freq_year_season(year-1, [12])
+            climatology += compute_freq_year_season(year, [1, 2, 3])
+        if charac == average_daily:
+            climatology = climatology/length(year, [1,2,3,12])
     else:
         for year in years:
-            climatology += compute_freq_year_season(year, season)
+            climatology += compute_freq_year_season(year, season.months)
+        if charac == average_daily:
+            climatology = climatology/length(year, season.months)
     if model.name == 'arc2':
         climatology = climatology.squeeze('T')
     return climatology
@@ -182,69 +216,103 @@ def file_name(year):
 # lat, lon, are used in contour_plot
 INPUT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/'
 EXAMPLE_YEAR = '2001'
-SEASON = [0]         # Use 0,1,..., 11 for a month. Use [0,1,2] for jan-mar
-SEASON_NAME = 'jan'
-# SEASON = range(10,11)               # BUT USE 'djfm' for djfm over one season
-CHARACTERISTICS = 'total_precip'
-THRESHOLD = 30
-YEARS = range(2001, 2009)
+Season = namedtuple('Season', 'name months')
+djfm = Season('DJFM', [1,2,3,12])
+all_year = Season('all-year', range(1, 13))
+amjjaso = Season('Apr-Oct', [4,5,6,7,8,9,10])
+seasons = [djfm, all_year, amjjaso]
 
-if CHARACTERISTICS == 'wdfreq':
-    CONTOUR_LEVELS = np.arange(0, 14, 2, dtype=float)  # BASED ON THRESHOLD
-    plot_filename = 'climatology-wet-days-'+ str(THRESHOLD) +'mm-frequency-' +\
-        SEASON_NAME + '-' + str(YEARS[0]) + '-' + str(YEARS[-1]) + '-' + 'all'
-    PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
-    PLOT_FOLDER = PROJECT_FOLDER + '/plot-images/climatology-' +\
-        str(THRESHOLD) + 'mm-wdf-jan-1999-2008/'
-if CHARACTERISTICS == 'total_precip':
-    CONTOUR_LEVELS = np.arange(0, 800, 40, dtype=float)
-    plot_filename = 'climatology-total-rainfall-frequency-' +\
-        SEASON_NAME + '-' + str(YEARS[0]) + '-' + str(YEARS[-1]) + '-' + 'all'
-    PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
-    PLOT_FOLDER = PROJECT_FOLDER + '/plot-images/climatology-' +\
-        'total-rainfall-1999-2008/'
+for season in seasons:
+   Characteristic = namedtuple('Characteristic',
+                              'name contour unit threshold min_val max_val')
 
-Model = namedtuple('Model', 'name version ext lat lon precip plot_pos date_example time')
-XYZ = [151, 152, 153, 154, 155]
-EXAMPLE_DATES = [360,  '2001-11-30']
-trmm = Model('trmm', 'TRMM_3B42', '.nc4', 'lat', 'lon', 'precipitation',
-             XYZ[0], EXAMPLE_DATES[0], 'time')
-chirps = Model('chirps', 'chirps-v2', '.nc', 'latitude', 'longitude', 'precip',
-               XYZ[1], EXAMPLE_DATES[1], 'time')
-gpcc = Model('gpcc', 'gpcc_v2018', '.nc', 'lat', 'lon', 'precip',
-             XYZ[4], EXAMPLE_DATES[1], 'time')
-tamsat = Model('tamsat', 'rfe_v3', '.nc', 'lat', 'lon', 'rfe',
-             XYZ[2], EXAMPLE_DATES[1], 'time')
-arc2 = Model('arc2', 'arc2', '.nc', 'Y', 'X', 'est_prcp',
-             XYZ[3], EXAMPLE_DATES[1], 'T')
-MODELS = [chirps]
-MODELS = [chirps]
-MODELS = [chirps, trmm, tamsat, gpcc, arc2]
+   if season == all_year:
+      wd_freq1 = Characteristic('WDF', np.arange(0, 280, 20, dtype=float), 'days', 1, 0,1)
+      wd_freq30 = Characteristic('WDF', np.arange(0, 40, 2, dtype=float), 'days', 30,0,1)
+      total_precip = Characteristic('TOTAL-RAINFALL',
+                                    np.arange(200,4800, 200, dtype=float), 'mm',
+                                    '',0,1.5)
+      average_daily = Characteristic('AVERAGE-DAILY-RAINFALL',
+                                    np.arange(0, 20, 1, dtype=float), 'mm',
+                                    '',0,1)
+   if season == djfm:
+      wd_freq1 = Characteristic('WDF', np.arange(0, 120, 10, dtype=float), 'days', 1,0,1)
+      wd_freq30 = Characteristic('WDF', np.arange(0, 40, 2, dtype=float), 'days', 30,0,1)
+      total_precip = Characteristic('TOTAL-RAINFALL',
+                                    np.arange(200,4800, 200, dtype=float), 'mm',
+                                    '',0,1.5)
+      average_daily = Characteristic('AVERAGE-DAILY-RAINFALL',
+                                    np.arange(0, 20, 1, dtype=float), 'mm',
+                                    '',0,1)
+   if season == amjjaso:
+      wd_freq1 = Characteristic('WDF', np.arange(0, 180, 10, dtype=float), 'days', 1,0,1)
+      wd_freq30 = Characteristic('WDF', np.arange(0, 40, 2, dtype=float), 'days', 30,0,1)
+      total_precip = Characteristic('TOTAL-RAINFALL',
+                                    np.arange(200,4800, 200, dtype=float), 'mm',
+                                    '',0,1.5)
+      average_daily = Characteristic('AVERAGE-DAILY-RAINFALL',
+                                    np.arange(0, 20, 1, dtype=float), 'mm',
+                                    '',0,1)
+   charac = average_daily
+   charac = total_precip
+   #charac = wd_freq1
+   #charac = wd_freq30
 
-fig = plt.figure(figsize=(16, 10))
-for model in MODELS:
-    file = file_name(EXAMPLE_YEAR)
-    ds_disk = get_by_file(file)
-    example_precip = ds_disk[model.precip]
-    if model.name == 'arc2':
-        example_precip = example_precip.sel(T=model.date_example)
-    else:
-        example_precip = example_precip.sel(time=model.date_example)
-    lat = ds_disk[model.lat]
-    lon = ds_disk[model.lon]
-    precip = ds_disk[model.precip]
+   PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
+   PLOT_FOLDER = PROJECT_FOLDER + '/plot-images/climatology-'  + charac.name + str(charac.threshold) + '/'
 
-    title = model.name
+   Model = namedtuple('Model', 'name version ext lat lon precip plot_pos date_example time')
+   XYZ = [151, 152, 153, 154, 155]
+   EXAMPLE_DATES = [360,  '2001-11-30']
+   trmm = Model('trmm', 'TRMM_3B42', '.nc4', 'lat', 'lon', 'precipitation',
+               XYZ[0], EXAMPLE_DATES[0], 'time')
+   chirps = Model('chirps', 'chirps-v2', '.nc', 'latitude', 'longitude', 'precip',
+                  XYZ[1], EXAMPLE_DATES[1], 'time')
+   gpcc = Model('gpcc', 'gpcc_v2018', '.nc', 'lat', 'lon', 'precip',
+               XYZ[4], EXAMPLE_DATES[1], 'time')
+   tamsat = Model('tamsat', 'rfe_v3', '.nc', 'lat', 'lon', 'rfe',
+               XYZ[2], EXAMPLE_DATES[1], 'time')
+   arc2 = Model('arc2', 'arc2', '.nc', 'Y', 'X', 'est_prcp',
+               XYZ[3], EXAMPLE_DATES[1], 'T')
+   MODELS = [chirps]
+   #MODELS = [arc2]
+   MODELS = [tamsat]
+   MODELS = [chirps, trmm, tamsat, arc2, gpcc]
 
-    t0 = time.time()
+   fig = plt.figure(figsize=(18, 6))
+   ticklabelsize = 18
+   titlesize = 18
 
-    climatology_freq = compute_climatology_season(YEARS, SEASON)
-    climatology_freq = climatology_freq / len(YEARS)
-    if model.name == 'trmm':
-        climatology_freq = climatology_freq.transpose()
-    countour_plot(climatology_freq, CONTOUR_LEVELS, title)
-    t1 = time.time()
-    print(t1-t0)
+   for model in MODELS:
+      if model.name == 'arc2':
+         YEARS = range(2001, 2010)
+      else:
+         YEARS = range(1999, 2010)
+      plot_filename = 'climatology-'+ charac.name + str(charac.threshold) + \
+      '-' + season.name + '-' + str(YEARS[0]) + '-' + str(YEARS[-1])
+      file = file_name(EXAMPLE_YEAR)
+      ds_disk = get_by_file(file)
+      if model.name == 'arc2':
+         example_precip = ds_disk[model.precip]
+         example_precip = example_precip.sel(T=model.date_example)
+      else:
+         example_precip = ds_disk[model.precip]
+         example_precip = example_precip.sel(time=model.date_example)
+      lat = ds_disk[model.lat]
+      lon = ds_disk[model.lon]
+      precip = ds_disk[model.precip]
 
-plt.savefig(PLOT_FOLDER + plot_filename + '.png')
-plt.show()
+      title = model.name
+
+      t0 = time.time()
+
+      climatology_freq = compute_climatology_season(YEARS, season)
+      climatology_freq = climatology_freq / len(YEARS)
+      if model.name == 'trmm':
+         climatology_freq = climatology_freq.transpose()
+      countour_plot(climatology_freq, charac.contour, title)
+      t1 = time.time()
+      print(model.name, t1-t0)
+
+   plt.savefig(PLOT_FOLDER + plot_filename + '.png')
+   plt.show()
