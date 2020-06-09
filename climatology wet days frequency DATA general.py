@@ -220,15 +220,15 @@ Season = namedtuple('Season', 'name months')
 djfm = Season('DJFM', [1,2,3,12])
 all_year = Season('all-year', range(1, 13))
 amjjaso = Season('Apr-Oct', [4,5,6,7,8,9,10])
-seasons = [djfm, all_year, amjjaso]
-
+seasons = [djfm, amjjaso]
+#seasons = [all_year]
 for season in seasons:
    Characteristic = namedtuple('Characteristic',
                               'name contour unit threshold min_val max_val')
 
    if season == all_year:
-      wd_freq1 = Characteristic('WDF', np.arange(0, 280, 20, dtype=float), 'days', 1, 0,1)
-      wd_freq30 = Characteristic('WDF', np.arange(0, 40, 2, dtype=float), 'days', 30,0,1)
+      wd_freq1 = Characteristic('WDF', np.arange(10, 330, 10, dtype=float), 'days', 1, 0,1.2)
+      wd_freq30 = Characteristic('WDF', np.arange(0, 48, 2, dtype=float), 'days', 30,0,1)
       total_precip = Characteristic('TOTAL-RAINFALL',
                                     np.arange(200,4800, 200, dtype=float), 'mm',
                                     '',0,1.5)
@@ -236,8 +236,8 @@ for season in seasons:
                                     np.arange(0, 20, 1, dtype=float), 'mm',
                                     '',0,1)
    if season == djfm:
-      wd_freq1 = Characteristic('WDF', np.arange(0, 120, 10, dtype=float), 'days', 1,0,1)
-      wd_freq30 = Characteristic('WDF', np.arange(0, 40, 2, dtype=float), 'days', 30,0,1)
+      wd_freq1 = Characteristic('WDF', np.arange(10, 330, 10, dtype=float), 'days', 1, 0,1.2)
+      wd_freq30 = Characteristic('WDF', np.arange(0, 48, 2, dtype=float), 'days', 30,0,1)
       total_precip = Characteristic('TOTAL-RAINFALL',
                                     np.arange(200,4800, 200, dtype=float), 'mm',
                                     '',0,1.5)
@@ -245,8 +245,8 @@ for season in seasons:
                                     np.arange(0, 20, 1, dtype=float), 'mm',
                                     '',0,1)
    if season == amjjaso:
-      wd_freq1 = Characteristic('WDF', np.arange(0, 180, 10, dtype=float), 'days', 1,0,1)
-      wd_freq30 = Characteristic('WDF', np.arange(0, 40, 2, dtype=float), 'days', 30,0,1)
+      wd_freq1 = Characteristic('WDF', np.arange(10, 330, 10, dtype=float), 'days', 1, 0,1.2)
+      wd_freq30 = Characteristic('WDF', np.arange(0, 48, 2, dtype=float), 'days', 30,0,1)
       total_precip = Characteristic('TOTAL-RAINFALL',
                                     np.arange(200,4800, 200, dtype=float), 'mm',
                                     '',0,1.5)
@@ -255,7 +255,7 @@ for season in seasons:
                                     '',0,1)
    charac = average_daily
    charac = total_precip
-   #charac = wd_freq1
+   charac = wd_freq1
    #charac = wd_freq30
 
    PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
@@ -279,7 +279,7 @@ for season in seasons:
    MODELS = [tamsat]
    MODELS = [chirps, trmm, tamsat, arc2, gpcc]
 
-   fig = plt.figure(figsize=(18, 6))
+   fig = plt.figure(figsize=(18, 7))
    ticklabelsize = 18
    titlesize = 18
 
