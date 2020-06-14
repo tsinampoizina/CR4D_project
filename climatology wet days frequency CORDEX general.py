@@ -20,6 +20,7 @@ from cartopy.io.shapereader import Reader as ShapeReader, natural_earth
 from geocat.viz import cmaps as gvcmaps
 from geocat.viz import util as gvutil
 
+
 def add_lon_ticklabels(ax, zero_direction_label=False,
                        dateline_direction_label=False):
     """
@@ -36,7 +37,6 @@ def add_lon_ticklabels(ax, zero_direction_label=False,
     """
     from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 
-
     lon_formatter = LongitudeFormatter(zero_direction_label=zero_direction_label,
                                        dateline_direction_label=dateline_direction_label)
     ax.xaxis.set_major_formatter(lon_formatter)
@@ -46,9 +46,9 @@ def month_start_end(year):
     month_lengths = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     if year in range(1964, 2021, 4):
         month_lengths[2] = 29
-    month_start_end_list = [(0,1)]
-    for mo in range(1,13):
-        s,e = month_start_end_list[-1]
+    month_start_end_list = [(0, 1)]
+    for mo in range(1, 13):
+        s, e = month_start_end_list[-1]
         month_start_end_list.append((e, e + month_lengths[mo]-1))
     return month_start_end_list
 
@@ -67,7 +67,7 @@ def get_by_file(filex):
 
 
 def countour_plot(model, dat, contour_levels, title, xyz, abc):
-    if model in ['MOHC-HadGEM3-RA_v1','MOHC-HadRM3P_v1']:
+    if model in ['MOHC-HadGEM3-RA_v1', 'MOHC-HadRM3P_v1']:
         lat = dat.lat
         lon = dat.lon
     else:
@@ -120,8 +120,6 @@ def countour_plot(model, dat, contour_levels, title, xyz, abc):
                                edgecolor='black',
                                lw=0.25)
 
-
-
     ax = plt.subplot(xyz, projection=projection)
     # ax = plt.axes(projection=projection)
 
@@ -129,7 +127,6 @@ def countour_plot(model, dat, contour_levels, title, xyz, abc):
 
     # Define the contour levels
     clevs = contour_levels
-
 
     # Import an NCL colormap, truncating it by using geocat.viz.util
     newcmp = gvutil.truncate_colormap(gvcmaps.precip3_16lev,
@@ -159,7 +156,7 @@ def countour_plot(model, dat, contour_levels, title, xyz, abc):
     ax.add_feature(provinces, zorder=3)
 
     # Use geocat.viz.util convenience function to set axes tick values
-    z = xyz%10
+    z = xyz % 10
     if z not in [1,6]:
         gvutil.set_axes_limits_and_ticks(ax, xticks=[45, 50],
                                          yticks=[-25, -20, -15])
@@ -202,92 +199,67 @@ def compute_freq_year_season(model, year, months_list):
     return freq_sum
 
 
-def compute_climatology_season(model,years, season):
+def compute_climato_season(model,years, season):
     example_year = '2000'
     example_date = '2000-01-04 12:00:00'
     file = file_name(model, example_year)
     ds_disk = get_by_file(file)
     example_precip = ds_disk["pr"]
     example_precip = example_precip.sel(time=example_date)
-    climatology = xr.zeros_like(example_precip)
+    climato = xr.zeros_like(example_precip)
     if season.name == 'DJFM':
         for year in years:
-            climatology += compute_freq_year_season(model, year-1, [12])
-            climatology += compute_freq_year_season(model, year, [1, 2, 3])
+            climato += compute_freq_year_season(model, year-1, [12])
+            climato += compute_freq_year_season(model, year, [1, 2, 3])
         if charac == ave_daily:
-            climatology = climatology/length(year, [1, 2, 3, 12])
+            climato = climato/length(year, [1, 2, 3, 12])
     else:
         for year in years:
-            climatology += compute_freq_year_season(model,year, season.months)
+            climato += compute_freq_year_season(model, year, season.months)
         if charac == ave_daily:
-            climatology = climatology/length(year, season.months)
-    return climatology
+            climato = climato/length(year, season.months)
+    return climato
 
 
 def file_name(model, year):
-    file = 'pr_AFR-44_ECMWF-ERAINT_evaluation_r1i1p1_'+ model +'_day_'
-    folder = '/media/sr0046/WD-exFAT-50/CORDEX/evaluation/'+\
-        model +'/ECMWF-ERAINT_r1i1p1/day/native/'
-    return folder+file+str(year)+'.nc'
+    file = 'pr_AFR-44_ECMWF-ERAINT_evaluation_r1i1p1_' + model + '_day_'
+    folder = '/media/sr0046/WD-exFAT-50/CORDEX/evaluation/' + model +\
+        '/ECMWF-ERAINT_r1i1p1/day/native/'
+    return folder + file + str(year) + '.nc'
 
 
 def generate_plot(model, dat, xyz, abc):
-    title = abc+') '+model
+    title = abc + ') ' + model
     t0 = time.time()
     countour_plot(model, dat, charac.contour, title, xyz, abc)
 
     t1 = time.time()
-    print(model,'time', t1-t0)
+    print(model, 'time', t1-t0)
 
 # CONSTANTS
-YEARS = range(1999, 2009)
-#YEARS = [2018]
+# YEARS = range(1999, 2009)
+# YEARS = [2018]
 Season = namedtuple('Season', 'name months')
 djfm = Season('DJFM', [1, 2, 3, 12])
 all_year = Season('all-year', range(1, 13))
 amjjaso = Season('Apr-Oct', [4, 5, 6, 7, 8, 9, 10])
-seasons = [djfm, amjjaso]
+seasons = [djfm, amjjaso, all_year]
 #seasons = [all_year]
 
 for season in seasons:
-    Characteristic = namedtuple('Characteristic',
-                              'name contour unit threshold min_val max_val')
-    if season == all_year:
-      wd_freq1 = Characteristic('WDF', np.arange(10, 330, 10, dtype=float),
-                                'days', 1, 0, 1.2)
-      wd_freq30 = Characteristic('WDF', np.arange(0, 48, 2, dtype=float),
-                                 'days', 30, 0, 1)
-      tot_prec = Characteristic('TOTAL-RAINFALL',
-                                    np.arange(200, 4800, 200, dtype=float),
-                                    'mm', '', 0, 1.5)
-      ave_daily = Characteristic('AVERAGE-DAILY-RAINFALL',
-                                    np.arange(0, 20, 1, dtype=float),
-                                     'mm', '', 0, 1)
-    if season == djfm:
-      wd_freq1 = Characteristic('WDF', np.arange(10, 330, 10, dtype=float),
-                                'days', 1, 0, 1.2)
-      wd_freq30 = Characteristic('WDF', np.arange(0, 48, 2, dtype=float),
-                                 'days', 30, 0, 1.2)
-      tot_prec = Characteristic('TOTAL-RAINFALL',
-                                    np.arange(200, 4800, 200, dtype=float),
-                                    'mm', '', 0, 1.5)
-      ave_daily = Characteristic('AVERAGE-DAILY-RAINFALL',
-                                    np.arange(0, 20, 1, dtype=float), 'mm',
-                                    '', 0, 1)
-    if season == amjjaso:
-      wd_freq1 = Characteristic('WDF', np.arange(10, 330, 10, dtype=float),
-                                'days', 1, 0, 1.2)
-      wd_freq30 = Characteristic('WDF', np.arange(0, 48, 2, dtype=float),
-                                 'days', 30, 0, 1)
-      tot_prec = Characteristic('TOTAL-RAINFALL',
-                                np.arange(200, 4800, 200, dtype=float),
-                                'mm', '', 0, 1.5)
-      ave_daily = Characteristic('AVERAGE-DAILY-RAINFALL',
-                                  np.arange(0, 20, 1, dtype=float),
-                                 'mm', '', 0, 1)
+    Charact = namedtuple('Charact',
+                         'name contour unit threshold min_val max_val')
+    wd_freq1 = Charact('WDF', np.arange(10, 330, 10, dtype=float), 'days',
+                       1, 0, 1.2)
+    wd_freq30 = Charact('WDF', np.arange(0, 48, 2, dtype=float), 'days', 30,
+                        0, 1)
+    tot_prec = Charact('TOTAL-RAINFALL', np.arange(200, 4800, 200, dtype=float),
+                       'mm', '', 0, 1.5)
+    ave_daily = Charact('AVERAGE-DAILY-RAINFALL', np.arange(0, 22, 1, dtype=float),
+                        'mm', '', 0, 1)
     charac = ave_daily
-    charac = tot_prec
-    charac = wd_freq1
+    #charac = tot_prec
+    #charac = wd_freq1
     #charac = wd_freq30
 
     PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
@@ -313,7 +285,7 @@ for season in seasons:
 
     XYZ = [251, 252, 253, 254, 259, 256, 257, 258, 255]
     abc = ['a', 'b', 'c', 'd', 'i', 'f', 'g', 'h', 'e']
-    for model, xyz, voy in zip(MODELS,XYZ,abc):
+    for model, xyz, voy in zip(MODELS, XYZ, abc):
         if model == 'MOHC-HadGEM3-RA_v1':
             YEARS = range(1999,2008)
         else:
@@ -324,25 +296,25 @@ for season in seasons:
             LAT = 'lat'
             LON = 'lon'
         if model != MODELS[-1]:
-            climatology_freq = compute_climatology_season(model, YEARS, season)
-            climatology_freq = climatology_freq / len(YEARS)
-            generate_plot(model, climatology_freq, xyz, voy)
+            climato_freq = compute_climato_season(model, YEARS, season)
+            climato_freq = climato_freq / len(YEARS)
+            generate_plot(model, climato_freq, xyz, voy)
         if model == MODELS[0]:
-            initial_climato = climatology_freq
-            ensemble_climato = climatology_freq.assign_coords(rlon = ((initial_climato.rlon*100)//1000)/100)
-            ensemble_climato = climatology_freq.assign_coords(rlat = ((initial_climato.rlat*100)//1000)/100)
+            ini_climato = climato_freq
+            ens_climato = climato_freq.assign_coords(rlon = ((ini_climato.rlon*100)//1000)/100)
+            ens_climato = climato_freq.assign_coords(rlat = ((ini_climato.rlat*100)//1000)/100)
         else:
             if model in ['MOHC-HadGEM3-RA_v1','MOHC-HadRM3P_v1']:
-                climatology_freq = climatology_freq.rename({'lat':'rlat'})
-                climatology_freq = climatology_freq.rename({'lon':'rlon'})
-            ensemble_climato = ensemble_climato.assign_coords(rlon = (initial_climato.rlon))
-            climatology_freq = climatology_freq.assign_coords(rlon = (initial_climato.rlon))
-            ensemble_climato = ensemble_climato.assign_coords(rlat = (initial_climato.rlat))
-            climatology_freq = climatology_freq.assign_coords(rlat = (initial_climato.rlat))
-            ensemble_climato += climatology_freq
+                climato_freq = climato_freq.rename({'lat':'rlat'})
+                climato_freq = climato_freq.rename({'lon':'rlon'})
+            ens_climato = ens_climato.assign_coords(rlon = (ini_climato.rlon))
+            climato_freq = climato_freq.assign_coords(rlon = (ini_climato.rlon))
+            ens_climato = ens_climato.assign_coords(rlat = (ini_climato.rlat))
+            climato_freq = climato_freq.assign_coords(rlat = (ini_climato.rlat))
+            ens_climato += climato_freq
         if model == MODELS[-1]:
-            generate_plot(model, ensemble_climato/len(MODELS)-1, xyz, voy)
-    plot_filename = 'climatology-CORDEX'+ charac.name + str(charac.threshold) + \
+            generate_plot(model, ens_climato/len(MODELS)-1, xyz, voy)
+    plot_filename = 'climatology-CORDEX' + charac.name + str(charac.threshold) + \
       '-' + season.name + '-' + str(YEARS[0]) + '-' + str(YEARS[-1])
     plt.savefig(PLOT_FOLDER + plot_filename + '.png')
     plt.show()
