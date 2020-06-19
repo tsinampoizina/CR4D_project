@@ -258,9 +258,9 @@ for season in seasons:
     ave_daily = Charact('AVERAGE-DAILY-RAINFALL', np.arange(0, 22, 1, dtype=float),
                         'mm', '', 0, 1)
     charac = ave_daily
-    #charac = tot_prec
+    charac = tot_prec
     #charac = wd_freq1
-    #charac = wd_freq30
+    charac = wd_freq30
 
     PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
     PLOT_FOLDER = PROJECT_FOLDER + '/plot-images/climatology-'  +\
@@ -300,10 +300,11 @@ for season in seasons:
             climato_freq = climato_freq / len(YEARS)
             generate_plot(model, climato_freq, xyz, voy)
         if model == MODELS[0]:
-            ini_climato = climato_freq
-            ens_climato = climato_freq.assign_coords(rlon = ((ini_climato.rlon*100)//1000)/100)
-            ens_climato = climato_freq.assign_coords(rlat = ((ini_climato.rlat*100)//1000)/100)
-        else:
+            ini_climato = xr.zeros_like(climato_freq)
+            # very slight differences in lat lon causes error when adding datta.array
+            ens_climato = ini_climato.assign_coords(rlon = ((ini_climato.rlon*100)//1000)/100)
+            ens_climato = ini_climato.assign_coords(rlat = ((ini_climato.rlat*100)//1000)/100)
+        if model!= MODELS[-1]:
             if model in ['MOHC-HadGEM3-RA_v1','MOHC-HadRM3P_v1']:
                 climato_freq = climato_freq.rename({'lat':'rlat'})
                 climato_freq = climato_freq.rename({'lon':'rlon'})
@@ -313,7 +314,7 @@ for season in seasons:
             climato_freq = climato_freq.assign_coords(rlat = (ini_climato.rlat))
             ens_climato += climato_freq
         if model == MODELS[-1]:
-            generate_plot(model, ens_climato/len(MODELS)-1, xyz, voy)
+            generate_plot(model, ens_climato/(len(MODELS)-1), xyz, voy)
     plot_filename = 'climatology-CORDEX' + charac.name + str(charac.threshold) + \
       '-' + season.name + '-' + str(YEARS[0]) + '-' + str(YEARS[-1])
     plt.savefig(PLOT_FOLDER + plot_filename + '.png')

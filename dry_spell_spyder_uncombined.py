@@ -12,6 +12,7 @@ import pdb
 import string
 import time
 
+
 t0 = time.time()
 tmax = 10
 precip = xr.DataArray(np.random.normal(20, 15, [26, 10, tmax]),
