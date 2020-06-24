@@ -9,9 +9,13 @@ import pdb
 import geopandas
 import rioxarray
 import xarray
-from shapely.geometry import mapping
+from shapely.geometry import mapping, Point, Polygon
 from pathlib import Path
 from tqdm import tqdm
+import fiona
+import shapely
+
+
 
 import models
 def shapefile(region):
@@ -40,11 +44,29 @@ def clip_for_region(output_folder, input_file, output_file, region, year):
     ds_disk.rio.set_spatial_dims(x_dim=model.lon, y_dim=model.lat, inplace=True)
     ds_disk.rio.write_crs("epsg:4326", inplace=True)
     region_shape = geopandas.read_file(shapefile(region), crs="epsg:4326")    
-    clipped = ds_disk.rio.clip(region_shape.geometry.apply(mapping), region_shape.crs, drop=False)
+    # poly_data=region_shape.geometry.apply(mapping)
+       
+    
+    # c = fiona.open(shapefile(region))
+    # shapefile_record = c.next()
+    # # Use Shapely to create the polygon
+    # shape = shapely.geometry.asShape( shapefile_record['geometry'] )
+    # print(shape)
+    
+    # # Alternative: if point.within(shape)    
+    # point = shapely.geometry.Point(49, -18) # longitude, latitude
+    # if shape.contains(point):
+    #     print("Found shape for point.", point)    
+
+    
+ 
+    #print(poly.contains(Point(10, 10)))
+    ds_disk.where(ds_disk != -999.0, np.nan)
+    clipped = ds_disk.rio.clip(region_shape.geometry.apply(mapping), region_shape.crs, drop=False) #, masked=True
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     clipped.to_netcdf(output_file)
 
-model = models.chirps
+model = models.arc2
 
 def main():
     FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/'
