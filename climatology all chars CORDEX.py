@@ -2,23 +2,49 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue May 19 15:07:39 2020
-
-@author: sr0046
 """
 
 import xarray as xr
 import numpy as np
+import pandas as pd
+
 import time
-from collections import namedtuple
+from tqdm import tqdm
 import pdb
+
+from pathlib import Path
+from collections import namedtuple
 
 from matplotlib import pyplot as plt
 from cartopy.feature import ShapelyFeature, OCEAN, LAKES
 from cartopy.crs import PlateCarree
 from cartopy.io.shapereader import Reader as ShapeReader, natural_earth
 
+from dry_spells_counter import dry_spells
+from characteristics import wd_freq1, wd_freq30, total_precip, average_daily, dry_spell_freq, dry_spell_ave_len, djfm, all_year, amjjaso
 from geocat.viz import cmaps as gvcmaps
 from geocat.viz import util as gvutil
+def shapefile(region):
+    if region == 'region-cwest':
+        return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-qgis/madagascar3region-centrewest.shp'
+    elif region == 'region-east':
+        return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-qgis/madagascar3region-east.shp'
+    elif region == 'region-south':
+        return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-qgis/madagascar3region-ssw.shp'
+    elif region == 'madagascar':
+        return '/home/sr0046/Documents/asa_sophie/Cordex-Mada/plot-qgis/madagascar.shp'
+
+
+def secs_to_dhms(seconds):
+    from datetime import datetime, timedelta
+    d = datetime(1,1,1) + timedelta(seconds=int(seconds))
+    if seconds > 3600:
+        output = f"{d.hour} hours, {d.minute} minutes {d.second} seconds"
+    elif seconds > 60:
+        output = f"{d.minute} minutes, {d.second} seconds"
+    else:
+        output = f"{d.second} seconds"
+    return output
 
 
 def add_lon_ticklabels(ax, zero_direction_label=False,
@@ -41,7 +67,6 @@ def add_lon_ticklabels(ax, zero_direction_label=False,
                                        dateline_direction_label=dateline_direction_label)
     ax.xaxis.set_major_formatter(lon_formatter)
 
-
 def month_start_end(year):
     month_lengths = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     if year in range(1964, 2021, 4):
@@ -52,18 +77,10 @@ def month_start_end(year):
         month_start_end_list.append((e, e + month_lengths[mo]-1))
     return month_start_end_list
 
-
 def length(year, lmonths):
     start_ends = [month_start_end(year)[mo] for mo in lmonths]
     lengths = [y-x+1 for x, y in start_ends]
     return sum(lengths)
-
-
-def get_by_file(filex):
-    '''Get data from filename, slice using Madagascar coordinates'''
-    ds = xr.open_dataset(filex)
-    # ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
-    return ds
 
 
 def countour_plot(model, dat, contour_levels, title, xyz, abc):
@@ -73,11 +90,11 @@ def countour_plot(model, dat, contour_levels, title, xyz, abc):
     else:
         lat = dat.rlat
         lon = dat.rlon
-    # Download the Natural Earth shapefile for country boundaries at 10m resolution
+    # Download the Natural Earth shapefile for country boundaries at
+    # 10m resolution
     shapefile = natural_earth(category='cultural',
                               resolution='10m',
                               name='admin_0_countries')
-
     # Sort the geometries in the shapefile into Madagascar or other
     country_geos = []
     other_land_geos = []
@@ -108,23 +125,21 @@ def countour_plot(model, dat, contour_levels, title, xyz, abc):
     shapefile = natural_earth(category='cultural',
                               resolution='10m',
                               name='admin_1_states_provinces')
-
     # Extract the Madagascar region borders
-    province_geos = [record.geometry for record in ShapeReader(shapefile).records()
+    province_geos = [record.geometry for record in
+                     ShapeReader(shapefile).records()
                      if record.attributes['admin'] == 'Madagascar']
-
-    # Define a Cartopy Feature for the province borders, so they can be easily plotted
+    # Define a Cartopy Feature for the province borders,
+    # so they can be easily plotted
     provinces = ShapelyFeature(province_geos,
                                crs=projection,
                                facecolor='none',
                                edgecolor='black',
                                lw=0.25)
-
+    # Generate figure (set its size (width, height) in inches)
+    # and axes using Cartopy
     ax = plt.subplot(xyz, projection=projection)
-    # ax = plt.axes(projection=projection)
-
     ax.set_extent([42, 52, -26, -11], crs=projection)
-
     # Define the contour levels
     clevs = contour_levels
 
@@ -133,24 +148,19 @@ def countour_plot(model, dat, contour_levels, title, xyz, abc):
                                       minval=charac.min_val,
                                       maxval=charac.max_val,
                                       n=len(clevs))
-
     # Draw the temperature contour plot with the subselected colormap
     # (Place the zorder of the contour plot at the lowest level)
     cf = ax.contourf(lon, lat, dat, levels=clevs, cmap=newcmp, zorder=1)
-
     # Draw horizontal color bar
     cax = plt.axes((0.14, 0.08, 0.74, 0.02))
     cbar = plt.colorbar(cf, ax=ax, cax=cax, ticks=clevs[1:-1:2],
                         drawedges=True, orientation='horizontal', pad=3)
     cbar.ax.tick_params(labelsize=ticklabelsize)
-
     # Add the land mask feature on top of the contour plot (higher zorder)
     ax.add_feature(land_mask, zorder=2)
-
     # Add the OCEAN and LAKES features on top of the contour plot
     ax.add_feature(OCEAN.with_scale('50m'), edgecolor='black', lw=1, zorder=2)
     ax.add_feature(LAKES.with_scale('50m'), edgecolor='black', lw=1, zorder=2)
-
     # Add the country and province features (which are transparent) on top
     ax.add_feature(countries, zorder=3)
     ax.add_feature(provinces, zorder=3)
@@ -177,12 +187,29 @@ def countour_plot(model, dat, contour_levels, title, xyz, abc):
     # as well as titles to left and right of the plot axes.
     gvutil.set_titles_and_labels(ax, lefttitle=title,
                                  lefttitlefontsize=titlesize)
+def get_precip(filex):
+    dsx = xr.open_dataset(filex)
+    file = filex
+    if Path(file).is_file():
+        print("input file exists")
+    else:
+        print("input does not exist")
+    dsx = xr.open_dataset(file)
+    prec = dsx['pr']
+    prec = prec.rename({model.time:'time'})
+    prec = prec.rename({model.lat:'lat'})
+    prec = prec.rename({model.lon:'lon'})
+    # ds = ds.sel(longitude=slice(42.125,54.125),latitude=slice(-26.125,-11.125))
+    return prec
+
 
 
 def compute_freq_year_season(model, year, months_list):
+    path_data_file = PLOT_DATA_FOLDER + season.name + str(year) + '.nc'
+
     example_date = str(year)+'-01-04 12:00:00'
     file = file_name(model, year)
-    ds_disk = get_by_file(file)
+    ds_disk = get_precip(file)
     precip = ds_disk["pr"]
     precip = precip*86400  # UNIT Conversion
     freq_sum = xr.zeros_like(precip.sel(time=example_date))
@@ -203,7 +230,7 @@ def compute_climato_season(model,years, season):
     example_year = '2000'
     example_date = '2000-01-04 12:00:00'
     file = file_name(model, example_year)
-    ds_disk = get_by_file(file)
+    ds_disk = get_precip(file)
     example_precip = ds_disk["pr"]
     example_precip = example_precip.sel(time=example_date)
     climato = xr.zeros_like(example_precip)
@@ -211,12 +238,12 @@ def compute_climato_season(model,years, season):
         for year in years:
             climato += compute_freq_year_season(model, year-1, [12])
             climato += compute_freq_year_season(model, year, [1, 2, 3])
-        if charac == ave_daily:
+        if charac == average_daily:
             climato = climato/length(year, [1, 2, 3, 12])
     else:
         for year in years:
             climato += compute_freq_year_season(model, year, season.months)
-        if charac == ave_daily:
+        if charac == average_daily:
             climato = climato/length(year, season.months)
     return climato
 
@@ -247,24 +274,20 @@ seasons = [djfm, amjjaso, all_year]
 #seasons = [all_year]
 
 for season in seasons:
-    Charact = namedtuple('Charact',
-                         'name contour unit threshold min_val max_val')
-    wd_freq1 = Charact('WDF', np.arange(10, 330, 10, dtype=float), 'days',
-                       1, 0, 1.2)
-    wd_freq30 = Charact('WDF', np.arange(0, 48, 2, dtype=float), 'days', 30,
-                        0, 1)
-    tot_prec = Charact('TOTAL-RAINFALL', np.arange(200, 4800, 200, dtype=float),
-                       'mm', '', 0, 1.5)
-    ave_daily = Charact('AVERAGE-DAILY-RAINFALL', np.arange(0, 22, 1, dtype=float),
-                        'mm', '', 0, 1)
-    charac = ave_daily
-    charac = tot_prec
+    charac = average_daily
+    charac = total_precip
     #charac = wd_freq1
     charac = wd_freq30
-
     PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
     PLOT_FOLDER = PROJECT_FOLDER + '/plot-images/climatology-'  +\
         charac.name + str(charac.threshold) + '/'
+    if charac.name == 'DRY-SPELL-LENGTH' :
+        PLOT_DATA_FOLDER_ROOT = PROJECT_FOLDER + '/plot-data/' + 'DRY-SPELL-FREQUENCY' + str(charac.threshold) + '/'
+    else:
+        PLOT_DATA_FOLDER_ROOT = PROJECT_FOLDER + '/plot-data/' + charac.name + str(charac.threshold) + '/'
+
+    save_plot_file = True
+    save_data_file = False
 
 
     MODELS = [
@@ -287,7 +310,7 @@ for season in seasons:
     abc = ['a', 'b', 'c', 'd', 'i', 'f', 'g', 'h', 'e']
     for model, xyz, voy in zip(MODELS, XYZ, abc):
         if model == 'MOHC-HadGEM3-RA_v1':
-            YEARS = range(1999,2008)
+            YEARS = range(1999,2009)
         else:
             YEARS = range(1999,2009)
         LAT ='rlat' # lat for MOHC-Had..., rlat for others
