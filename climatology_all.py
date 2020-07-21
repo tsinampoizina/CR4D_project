@@ -20,8 +20,8 @@ from cartopy.feature import ShapelyFeature, OCEAN, LAKES
 from cartopy.crs import PlateCarree
 from cartopy.io.shapereader import Reader as ShapeReader, natural_earth
 
-from dry_spells_counter import dry_spells, pool_dry_spells, asafa_dry_spells
-from characteristics import wd_freq1, wd_freq30, total_precip, average_daily, dry_spell_freq, dry_spell_ave_len, djfm, all_year, amjjaso
+from dry_spells_counter import dry_spells, pool_dry_spells, asafa_dry_spells, wet_spells, asafa_wet_spells
+from characteristics import wd_freq1, wd_freq30, total_precip, average_daily, wet_spell_freq, wet_spell_ave_len, dry_spell_freq, dry_spell_ave_len, djfm, all_year, amjjaso
 from geocat.viz import cmaps as gvcmaps
 from geocat.viz import util as gvutil
 def shapefile(region):
@@ -123,11 +123,11 @@ def colorbar(dat, contour_levels):
     cf = ax.contourf(lon, lat, dat, levels=clevs, cmap=newcmp, zorder=1, extend='both')
     # Draw horizontal color bar
     cax = plt.axes((0.14, 0.08, 0.74, 0.02))
-    cbar = plt.colorbar(cf, ax=ax, cax=cax, ticks=clevs[1:-1:2], extend='both',
+    cbar = plt.colorbar(cf, ax=ax, cax=cax, ticks=charac.ticks_step, extend='both',
                         drawedges=True, orientation='horizontal', pad=6)
     cbar.ax.tick_params(labelsize=ticklabelsize)
 
-def countour_plot(dat, contour_levels, title):
+def countour_plot(model, dat, contour_levels, title):
     if 'rlat' in dat.dims:
         lat = dat.rlat
         lon = dat.rlon
@@ -184,13 +184,26 @@ def countour_plot(dat, contour_levels, title):
     # and axes using Cartopy
     ax = plt.subplot(model.plot_pos[0],model.plot_pos[1], model.plot_pos[2],projection=projection)
     ax.set_extent([42, 52, -26, -11], crs=projection)
+
+    
     # Define the contour levels
     clevs = contour_levels
+    
     # Import an NCL colormap, truncating it by using geocat.viz.util\
     # convenience function
+    if model.name == 'Ensemble STD':
+        cax = plt.axes((0.14, 0.08, 0.74, 0.02))
+        #print('can I add', type(clevs))
+        #print('and', type(np.array([1,2,3])))
+        #clevs = np.concatenate([np.array([1,2,3]),clevs])
     newcmp = gvutil.truncate_colormap(gvcmaps.precip3_16lev,
                                       minval=charac.min_val,
                                       maxval=charac.max_val,
+                                      n=len(clevs)+2)
+    if model.name == 'Ensemble STD' and 'LENGTH' in charac.name:
+        newcmp = gvutil.truncate_colormap(gvcmaps.precip3_16lev,
+                                      minval=0,
+                                      maxval=1,
                                       n=len(clevs)+2)
     newcmp.set_under("white")
     newcmp.set_over("darkred")
@@ -198,7 +211,12 @@ def countour_plot(dat, contour_levels, title):
     # (Place the zorder of the contour plot at the lowest level)
     cf = ax.contourf(lon, lat, dat, levels=clevs, cmap=newcmp, zorder=1, extend='both')
     # Draw horizontal color bar
-
+    if model.name == 'Ensemble STD':
+        cbar = plt.colorbar(cf, ax=ax, cax=cax, ticks=charac.ticks_step, extend='both',
+                        drawedges=True, orientation='horizontal', pad=6)
+        cbar.ax.tick_params(labelsize=ticklabelsize)
+        
+        
     # Add the land mask feature on top of the contour plot (higher zorder)
     ax.add_feature(land_mask, zorder=2)
     # Add the OCEAN and LAKES features on top of the contour plot
@@ -272,7 +290,11 @@ def compute_climatology_dry_spell(mody, years, season, len_or_count):
             Path(PLOT_DATA_FOLDER).mkdir(parents=True, exist_ok=True)
             this_year.to_netcdf(path_data_file)
             print(year, '...', 'data saved to', path_data_file)
+            print('this year after compute_dry_spell...', this_year)
             this_year = this_year[len_or_count]
+            t=200
+            print('sleep for', t, 'seconds')
+            #time.sleep(t)
         else:
             print(year, '...')
             ds_disk = xr.open_dataset(path_data_file)
@@ -288,10 +310,14 @@ def compute_climatology_dry_spell(mody, years, season, len_or_count):
             this_year = this_year.assign_coords(lat=climatology.lat)
             this_year = this_year.assign_coords(lon=climatology.lon)
         climatology += this_year
+        
     if time in climatology.dims:
         climatology = climatology.squeeze('time')
     path_data_file_all = PLOT_DATA_FOLDER + season.name + str(YEARS[0]) + '-' + str(YEARS[-1]) + '.nc'
     if not Path(path_data_file_all).is_file() or True:
+        t=120
+        print('sleep for', t, 'seconds')
+        #time.sleep(t)
         climatology.to_netcdf(path_data_file_all)
     return climatology
 
@@ -316,7 +342,10 @@ def compute_dry_spell_freq_year_season(mod, year, season):
             return asafa_dry_spells(sliced, 5, mod)
         return dry_spells(sliced, 5)
     else:
-        return wet_spells(sliced,20)
+        if asafast:
+            return asafa_wet_spells(sliced, 20, mod)
+        else:
+            return wet_spells(sliced,20)
     # print(dask_dry_spells(sliced, 5).values)
     # print('matory amizay')
 
@@ -443,11 +472,11 @@ def compute_climatology_cordex_ens(years, season):
     climatologies = xr.concat(cordex_climatologies, dim='model')
     climatologies = climatologies.rename(charac.variable_name)
     mean =  climatologies.mean("model")
-    stdev =  climatologies.std("model")
+    std =  climatologies.std("model")
     mean = mean.transpose('rlat', 'rlon',transpose_coords=False)
-    stdev = stdev.transpose('rlat','rlon',transpose_coords=False)
-    stdev.to_netcdf('/home/sr0046/Desktop/stdev.nc')
-    return {'mean':mean, 'stdev':stdev}
+    std = std.transpose('rlat','rlon',transpose_coords=False)
+    std.to_netcdf('/home/sr0046/Desktop/stdev.nc')
+    return {'mean':mean, 'stdev':std}
 
 
 def file_name(mod, year):
@@ -473,7 +502,7 @@ seasons = [djfm]
 seasons = [all_year]
 seasons = [djfm]
 
-#seasons = [djfm, amjjaso]
+#seasons = [amjjaso]
 
 dsx = xr.open_dataset('/home/sr0046/Documents/asa_sophie/Cordex-Mada/data-region/madagascar/trmm/TRMM_3B42-madagascar-1999.nc')
 for season in seasons:
@@ -484,9 +513,11 @@ for season in seasons:
    #charac = wd_freq30(season)
    charac = dry_spell_freq(season)
    charac = dry_spell_ave_len(season)
+   charac = wet_spell_freq(season)
+   #charac = wet_spell_ave_len(season)
    save_plot_file = True
    save_data_file = False
-   asafast = False
+   asafast = True
 
    PROJECT_FOLDER = '/home/sr0046/Documents/asa_sophie/Cordex-Mada'
    PLOT_FOLDER = PROJECT_FOLDER + '/plot-images/climatology-'  + charac.name + str(charac.threshold) + '/'
@@ -498,18 +529,20 @@ for season in seasons:
 
    from models import *
    #MODELS = [trmm]
-   #MODELS = [tamsat] #
+   MODELS = [itamsat] #
    #MODELS += [chirps, trmm, arc2, gpcc]
    #MODELS = [gpcc]
-   #MODELS = [ichirps, gpcc]
+   # MODELS = [ichirps, gpcc]
    #MODELS = [ichirps]
-   MODELS = [gpcc]
+   #MODELS = [gpcc]
    CORDEX_MODELS = [remo,  hirham, crcm5, racmo, rca4, clm, rm3p, gem3]
-   #MODELS = [remo,  hirham,  crcm5, racmo, rca4, clm, rm3p, gem3, ens, stdev]
+   MODELS = [remo,  hirham,  crcm5, racmo, rca4, clm, rm3p, gem3, ens, stdev]
+   #MODELS.remove(gem3)
    #MODELS = [itamsat]
-   #MODELS = [ens]
-   #MODELS += [ichirps, trmm, arc2, gpcc, itamsat]
+   #MODELS = [remo]
+   MODELS += [ichirps, trmm, arc2, gpcc]
    #MODELS = [remo, ens, stdev]
+   
 
    fig = plt.figure(figsize=(14, 14))
    ticklabelsize = 18
@@ -517,15 +550,15 @@ for season in seasons:
    for model in MODELS:
 
       if model.name == 'arc2':
-         YEARS = range(2002, 2009) # 2002 to 2009
+          YEARS = range(2002, 2009) # 2002 to 2009
       elif model.name == 'tamsat' and season == djfm:
-         YEARS = range(1999, 2009)
+          YEARS = range(1999, 2009)
       elif model == gem3 and season != all_year:
           YEARS = range(1999,2008)
       elif model == gem3 and season == all_year:
           YEARS = range(1999, 2007)
       else:
-         YEARS = range(1999, 2009)  # 2005 izao
+          YEARS = range(1999, 2009)  # 2005 izao
 
       print("Processing ", charac.name, 'for', season.name, 'of', YEARS)
       print("Save plot file:", save_plot_file)
@@ -548,10 +581,10 @@ for season in seasons:
       else:
           climatology_freq = compute_climatology_season(model, YEARS, season)
       climatology_freq = climatology_freq / len(YEARS)
-      countour_plot(climatology_freq, charac.contour, indiv_title)
+      countour_plot(model, climatology_freq, charac.contour, indiv_title)
       t1 = time.time()
       print('\n','Execution time', model.name, ':', secs_to_dhms(t1-t0))
-   colorbar(climatology_freq, charac.contour)
+   
    if save_plot_file:
        Path(PLOT_FOLDER).mkdir(parents=True, exist_ok=True)
        if len(MODELS) == 9:
@@ -559,7 +592,7 @@ for season in seasons:
        elif len(MODELS) == 5 and chirps in MODELS:
            data_grid_or_cordex = 'data'
        elif len(MODELS) <= 2:
-           data_grid_or_cordex = "".join([model for model in MODELS])
+           data_grid_or_cordex = "".join([model.name for model in MODELS])
        else:
            data_grid_or_cordex = ''
        print('file saved as ', PLOT_FOLDER + data_grid_or_cordex + plot_filename + '.png')

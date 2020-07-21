@@ -48,14 +48,14 @@ def dry_spell_freq(season):
 
 def wet_spell_freq(season):
     if season == djfm:
-        wet_spell_freq = Characteristic('WET-SPELL-FREQUENCY', 'Frequency of wet spells',np.arange(0, 9, 0.5, dtype=float),
-                                'spells', 5, 0, 1, np.array([1,2,3,4,5,6,7,8]), 'wet_spell_freq')
+        wet_spell_freq = Characteristic('WET-SPELL-FREQUENCY', 'Frequency of wet spells',np.arange(0, 10, 0.5, dtype=float),
+                                'spells', 20, 0, 1, np.arange(0, 10, 1, dtype=float), 'wet_spell_freq')
     if season == all_year:
         wet_spell_freq = Characteristic('WET-SPELL-FREQUENCY', 'Frequency of wet spells',np.arange(0, 29, 1, dtype=float),
-                                'spells', 5, 0, 1, np.arange(0, 29, 2, dtype=float), 'wet_spell_freq')
+                                'spells', 20, 0, 1, np.arange(0, 29, 2, dtype=float), 'wet_spell_freq')
     if season == amjjaso:
-        wet_spell_freq = Characteristic('WET-SPELL-FREQUENCY', 'Frequency of wet spells',np.arange(0, 17, 1, dtype=float),
-                                'spells', 5, 0, 1, np.arange(0, 17, 1, dtype=float), 'wet_spell_freq')
+        wet_spell_freq = Characteristic('WET-SPELL-FREQUENCY', 'Frequency of wet spells',np.arange(0, 15, 1, dtype=float),
+                                'spells', 20, 0, 1, np.arange(0, 15, 1, dtype=float), 'wet_spell_freq')
     return wet_spell_freq
 
 def dry_spell_ave_len(season):
@@ -69,3 +69,15 @@ def dry_spell_ave_len(season):
         dry_spell_ave_len = Characteristic('DRY-SPELL-LENGTH', 'Average length of a dry spell',np.arange(0, 151, 10, dtype=float),
                                 'spells', 5, 0, 1, np.arange(0, 151, 10, dtype=float), 'dry_spell_ave_len')
     return dry_spell_ave_len
+
+def wet_spell_ave_len(season):
+    if season == djfm:
+        wet_spell_ave_len = Characteristic('WET-SPELL-LENGTH', 'Average length of a wet spell',np.arange(0, 31, 1, dtype=float),
+                                'spells', 20, 0.14, 1, np.arange(0, 31, 2, dtype=float), 'wet_spell_ave_len')
+    if season == all_year:
+        wet_spell_ave_len = Characteristic('WET-SPELL-LENGTH', 'Average length of a wet spell',np.arange(0, 30, 1.5, dtype=float),
+                                'spells', 20, 0, 1.5, np.arange(0, 30, 5, dtype=float), 'wet_spell_ave_len')
+    if season == amjjaso:
+        wet_spell_ave_len = Characteristic('WET-SPELL-LENGTH', 'Average length of a wet spell',np.arange(0, 16, 1, dtype=float),
+                                'spells', 20, 0.33, 1, np.arange(0, 16, 1, dtype=float), 'wet_spell_ave_len')
+    return wet_spell_ave_len
