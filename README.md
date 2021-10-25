@@ -11,7 +11,7 @@ The codes are not well-documented but the methodologies for the computations are
 Plot samples of the computed data are found in
 * [Output Sample](https://github.com/tsinampoizina/CR4D_project/tree/master/output_sample)  
 
-The codes will work only if you replace the path of the project and the path of the data into your own path. I haven't factorised this process yet.
+__The codes will work only if you replace the path of the project and the path of the data into your own path. I haven't factorised this process yet.__
 
 ## TODOS
 * Refactor the prefix of file path of the project_folder and the data folder
