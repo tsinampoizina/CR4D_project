@@ -15,3 +15,6 @@ __The codes will work only if you replace the path of the project and the path o
 
 ## TODOS
 * Refactor the prefix of file path of the project_folder and the data folder
+
+## LICENSE
+GNU General Public License v3.0
